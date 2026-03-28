@@ -9,6 +9,7 @@
 | Domain scan (DNS, SPF, HTTPS, etc.) | `domain_security.py` |
 | UI, questionnaire flow, report, PDF export | `frontend/src/` (especially `App.jsx`, `pdfExport.js`) |
 | Verify Gemini key from the server | `scripts/verify_gemini.py` |
+| Sanity-check domain scan (DMARC/SPF on known domains) | `python scripts/check_domain_scan.py` |
 
 ## Local run order
 

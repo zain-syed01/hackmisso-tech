@@ -112,7 +112,7 @@ uvicorn main:app --reload --port 8000
 ## API
 
 - `POST /api/analyze` — JSON body: one answer per question id (`q1`…`q20`), values `A` | `B` | `C` | `D`.
-- `POST /api/domain-scan` — JSON body: `{ "domain": "example.com" }`.
+- `POST /api/domain-scan` — JSON body: `{ "domain": "example.com" }`. Uses public DNS (TXT includes DMARC at `_dmarc.<domain>`); optional env **`DOMAIN_SCAN_DNS_SERVERS`** (comma-separated IPs, e.g. `8.8.8.8,1.1.1.1`) if the server’s system resolver is unreliable. Regression: `python scripts/check_domain_scan.py`.
 - `GET /api/ai-status` — whether a Gemini key is loaded (length only, not the secret).
 - Analyze response includes `recommendation_source` (`gemini` | `fallback`) and `ai_provider_error` when the key was set but the model call failed.
 

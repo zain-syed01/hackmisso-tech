@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import socket
 import ssl
@@ -14,6 +15,15 @@ import dns.exception
 import dns.resolver
 
 USER_AGENT = "ClearRisk-DomainScan/1.0"
+
+
+def _dns_resolver() -> dns.resolver.Resolver:
+    """Resolver for all scans. Set DOMAIN_SCAN_DNS_SERVERS=8.8.8.8,1.1.1.1 if system DNS is unreliable (e.g. some hosts)."""
+    r = dns.resolver.Resolver()
+    raw = (os.environ.get("DOMAIN_SCAN_DNS_SERVERS") or "").strip()
+    if raw:
+        r.nameservers = [p.strip() for p in raw.split(",") if p.strip()]
+    return r
 
 
 def normalize_domain(raw: str) -> str:
@@ -36,15 +46,41 @@ def normalize_domain(raw: str) -> str:
 
 
 def _txt_records(host: str) -> list[str]:
-    out: list[str] = []
-    try:
-        ans = dns.resolver.resolve(host, "TXT", lifetime=8)
-        for r in ans:
-            blob = b"".join(r.strings).decode("utf-8", errors="replace")
-            out.append(blob)
-    except (dns.exception.DNSException, OSError):
-        pass
-    return out
+    """Return all TXT strings for this name, following a short CNAME chain if there is no TXT at the first name."""
+    res = _dns_resolver()
+    name = host.rstrip(".").lower()
+    visited: set[str] = set()
+    for _ in range(8):
+        if name in visited:
+            break
+        visited.add(name)
+        try:
+            ans = res.resolve(name, "TXT", lifetime=12)
+        except dns.resolver.NXDOMAIN:
+            return []
+        except dns.resolver.NoAnswer:
+            ans = None
+        except (dns.exception.DNSException, OSError):
+            return []
+        blobs: list[str] = []
+        if ans:
+            for r in ans:
+                blob = b"".join(r.strings).decode("utf-8", errors="replace")
+                blobs.append(blob)
+        if blobs:
+            return blobs
+        try:
+            cans = res.resolve(name, "CNAME", lifetime=12)
+            name = str(cans[0].target).rstrip(".").lower()
+        except (dns.exception.DNSException, OSError):
+            break
+    return []
+
+
+def _dmarc_txt_has_v1(txt: str) -> bool:
+    """True if this TXT is a DMARC record (case-insensitive; spaces ignored for the tag check)."""
+    compact = txt.upper().replace(" ", "")
+    return "V=DMARC1" in compact
 
 
 def scan_domain(hostname: str) -> dict[str, Any]:
@@ -55,7 +91,7 @@ def scan_domain(hostname: str) -> dict[str, Any]:
     # --- DNS A ---
     a_records: list[str] = []
     try:
-        ans = dns.resolver.resolve(host, "A", lifetime=8)
+        ans = _dns_resolver().resolve(host, "A", lifetime=12)
         a_records = [str(r) for r in ans]
         checks.append(
             {
@@ -81,7 +117,7 @@ def scan_domain(hostname: str) -> dict[str, Any]:
     # --- MX ---
     mx_records: list[tuple[int, str]] = []
     try:
-        ans = dns.resolver.resolve(host, "MX", lifetime=8)
+        ans = _dns_resolver().resolve(host, "MX", lifetime=12)
         mx_records = sorted((r.preference, str(r.exchange).rstrip(".")) for r in ans)
         ok_mx = len(mx_records) > 0
         checks.append(
@@ -130,7 +166,7 @@ def scan_domain(hostname: str) -> dict[str, Any]:
     dmarc_policy: str | None = None
     dmarc_host = f"_dmarc.{host}"
     for txt in _txt_records(dmarc_host):
-        if "v=DMARC1" in txt.upper().replace(" ", ""):
+        if _dmarc_txt_has_v1(txt):
             dmarc_record = txt
             m = re.search(r"\bp=(none|quarantine|reject)\b", txt, re.I)
             if m:
