@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ASSESSMENT_DATA, QUESTION_ORDER } from "./assessmentData.js";
+import { ASSESSMENT_DATA, ASSESSMENT_META, MAX_RAW_RISK, QUESTION_ORDER } from "./assessmentData.js";
 import { parseRecommendationText } from "./recommendationUtils.js";
 import { downloadAssessmentPdf } from "./pdfExport.js";
 
-const REPORT_STORAGE_KEY = "roostguard_last_report";
+const REPORT_STORAGE_KEY = "clearrisk_last_report";
+const DOMAIN_SCAN_URL = "/api/domain-scan";
 
 /** Same-origin `/api` via Vite proxy → `http://127.0.0.1:8000`. Override with `VITE_API_URL` if needed. */
 const API_URL = import.meta.env.VITE_API_URL?.trim() || "/api/analyze";
@@ -80,7 +81,7 @@ function LoadingOverlay() {
           animate={{ boxShadow: ["0 0 24px rgba(34,211,238,0.2)", "0 0 56px rgba(34,211,238,0.45)", "0 0 24px rgba(34,211,238,0.2)"] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
         >
-          <span className="text-2xl font-bold tracking-tight text-cyan-300">RG</span>
+          <span className="text-2xl font-bold tracking-tight text-cyan-300">CR</span>
         </motion.div>
       </div>
       <motion.p
@@ -91,7 +92,7 @@ function LoadingOverlay() {
       >
         Generating intelligence…
       </motion.p>
-      <p className="mt-1 text-sm text-slate-500">RoostGuard is analyzing your responses</p>
+      <p className="mt-1 text-sm text-slate-500">ClearRisk is analyzing your responses</p>
       <div className="mt-8 flex gap-1.5">
         {[0, 1, 2].map((i) => (
           <motion.span
@@ -141,7 +142,7 @@ function RecommendationCard({ text, index, source }) {
             <p className="mt-1 text-base font-semibold leading-snug text-white">{question}</p>
             {score !== null && (
               <p className="mt-2 inline-flex rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-200/90">
-                Current score: {score} / 100
+                Risk points (this answer): {score}
               </p>
             )}
           </div>
@@ -161,7 +162,14 @@ function RecommendationCard({ text, index, source }) {
   );
 }
 
-function ScoreDashboard({ score, recommendations, recommendationSource = null }) {
+function ScoreDashboard({
+  score,
+  recommendations,
+  recommendationSource = null,
+  riskTotal = null,
+  riskBand = null,
+  riskBandMessage = null,
+}) {
   const tier = getPostureTier(score);
   const tiers = [
     { id: "critical", label: "Critical", sub: "< 40%", color: "rgb(248 113 113)", bg: "rgba(248,113,113,0.12)" },
@@ -183,7 +191,17 @@ function ScoreDashboard({ score, recommendations, recommendationSource = null })
         <div className="relative">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400/90">Risk score dashboard</p>
           <h2 className="mt-2 font-sans text-2xl font-bold tracking-tight text-white md:text-3xl">Posture overview</h2>
-          <p className="mt-1 text-sm text-slate-400">Composite score across 20 controls (max 2,000 points).</p>
+          <p className="mt-1 text-sm text-slate-400">
+            {ASSESSMENT_META.title}. Posture score (higher is safer) from {QUESTION_ORDER.length} questions; raw risk
+            index {riskTotal != null ? Math.round(riskTotal) : "—"} / {MAX_RAW_RISK} (lower is better).
+            {riskBand ? (
+              <>
+                {" "}
+                <span className="text-slate-300">Band: {riskBand}</span>
+                {riskBandMessage ? <span className="text-slate-500"> — {riskBandMessage}</span> : null}
+              </>
+            ) : null}
+          </p>
 
           <div className="mt-8 grid grid-cols-3 gap-3 md:gap-4">
             {tiers.map((t, i) => {
@@ -284,7 +302,7 @@ function ScoreDashboard({ score, recommendations, recommendationSource = null })
             {recommendationSource === "gemini" && (
               <span
                 className="cursor-help rounded-full border border-violet-400/40 bg-violet-500/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200"
-                title="Generated with Google Gemini (GEMINI_API_KEY was set on the server)."
+                title="Generated with Google Gemini (e.g. gemini-2.5-flash when GEMINI_MODEL is set on the server)."
               >
                 Gemini
               </span>
@@ -329,6 +347,10 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [importMessage, setImportMessage] = useState(null);
+  const [domainInput, setDomainInput] = useState("");
+  const [domainScanLoading, setDomainScanLoading] = useState(false);
+  const [domainScanError, setDomainScanError] = useState(null);
+  const [domainScanResult, setDomainScanResult] = useState(null);
 
   const totalQuestions = QUESTION_ORDER.length;
   const reviewStepIndex = totalQuestions;
@@ -409,6 +431,9 @@ export default function App() {
       setStepIndex(0);
       persistReport({
         score,
+        riskTotal: typeof data.risk_total === "number" ? data.risk_total : null,
+        riskBand: typeof data.risk_band === "string" ? data.risk_band : null,
+        riskBandMessage: typeof data.risk_band_message === "string" ? data.risk_band_message : null,
         recommendations: recs,
         recommendationSource: src,
         answers: { ...answers },
@@ -460,10 +485,53 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `roostguard-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `clearrisk-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     setImportMessage("JSON backup downloaded.");
+  }
+
+  async function runDomainScan(e) {
+    e.preventDefault();
+    setDomainScanError(null);
+    setDomainScanResult(null);
+    const d = domainInput.trim();
+    if (!d) {
+      setDomainScanError("Enter a domain (e.g. example.com).");
+      return;
+    }
+    setDomainScanLoading(true);
+    try {
+      const res = await fetch(DOMAIN_SCAN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: d }),
+      });
+      const rawText = await res.text();
+      let data = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        throw new Error(
+          rawText
+            ? `API did not return JSON (HTTP ${res.status}): ${rawText.slice(0, 280)}`
+            : `Empty response (HTTP ${res.status})`
+        );
+      }
+      if (!res.ok) {
+        throw new Error(formatApiErrorDetail(res.status, data));
+      }
+      setDomainScanResult(data);
+    } catch (err) {
+      let message = err instanceof Error ? err.message : "Scan failed.";
+      if (err instanceof TypeError && String(message).toLowerCase().includes("fetch")) {
+        message =
+          "Could not reach the API. Start the FastAPI server (uvicorn main:app --reload --port 8000) and try again.";
+      }
+      setDomainScanError(message);
+    } finally {
+      setDomainScanLoading(false);
+    }
   }
 
   function importState(file) {
@@ -523,10 +591,10 @@ export default function App() {
       <header className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/20 to-emerald-600/10">
-            <span className="text-sm font-extrabold tracking-tight text-cyan-300">RG</span>
+            <span className="text-sm font-extrabold tracking-tight text-cyan-300">CR</span>
           </div>
           <div>
-            <h1 className="font-sans text-xl font-bold tracking-tight text-white md:text-2xl">RoostGuard</h1>
+            <h1 className="font-sans text-xl font-bold tracking-tight text-white md:text-2xl">ClearRisk</h1>
             <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Security posture platform</p>
           </div>
         </div>
@@ -576,13 +644,13 @@ export default function App() {
             {[
               {
                 t: "Questionnaire",
-                d: "20 control questions with step-by-step flow and review before analysis.",
+                d: "20 cyber-safety questions (A–D answers) with review before analysis.",
                 tab: "questionnaire",
                 icon: "📋",
               },
               {
                 t: "Domain scan",
-                d: "Placeholder for future external posture checks (DNS, email authentication, headers).",
+                d: "DNS, mail (MX), SPF & DMARC, HTTPS/TLS, HSTS, and HTTP→HTTPS redirect checks.",
                 tab: "domain",
                 icon: "🔍",
               },
@@ -612,7 +680,7 @@ export default function App() {
             ))}
           </div>
           <p className="mt-10 text-center text-xs text-slate-600">
-            Assessment data in RoostGuard stays in this browser session unless you export it.
+            Assessment data in ClearRisk stays in this browser session unless you export it.
           </p>
         </motion.section>
       )}
@@ -623,7 +691,7 @@ export default function App() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400/80">Assessment</p>
             <h2 className="mt-2 font-sans text-3xl font-bold tracking-tight text-white md:text-4xl">Cybersecurity posture review</h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-400 md:text-base">
-              Step through guided questions. RoostGuard maps your answers to a composite score and recommendations.
+              Step through guided questions. ClearRisk maps your answers to a posture score, risk band, and recommendations.
             </p>
           </div>
 
@@ -772,6 +840,9 @@ export default function App() {
                 score={reportDisplayScore}
                 recommendations={lastReport.recommendations ?? []}
                 recommendationSource={lastReport.recommendationSource ?? null}
+                riskTotal={lastReport.riskTotal ?? null}
+                riskBand={lastReport.riskBand ?? null}
+                riskBandMessage={lastReport.riskBandMessage ?? null}
               />
               {lastReport.savedAt && (
                 <p className="mt-6 text-center text-xs text-slate-500">
@@ -813,14 +884,91 @@ export default function App() {
 
       {activeTab === "domain" && (
         <motion.section
-          className="mx-auto max-w-2xl rounded-2xl border border-slate-700/80 bg-slate-900/70 p-8"
+          className="mx-auto max-w-3xl space-y-6"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h2 className="font-sans text-2xl font-bold text-white">Domain scan</h2>
-          <p className="mt-3 text-sm leading-relaxed text-slate-400">
-            RoostGuard currently centers on the questionnaire and API-backed scoring. Automated domain and email-security checks may be added in a future release.
-          </p>
+          <div className="rounded-2xl border border-slate-700/80 bg-slate-900/70 p-8">
+            <h2 className="font-sans text-2xl font-bold text-white">Domain scan</h2>
+            <p className="mt-3 text-sm leading-relaxed text-slate-400">
+              Passive checks only: DNS (A, MX), SPF/DMARC TXT records, HTTPS/TLS reachability, HSTS, certificate horizon, and
+              whether plain HTTP redirects toward HTTPS. No intrusive port scanning.
+            </p>
+            <form className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={runDomainScan}>
+              <div className="min-w-0 flex-1">
+                <label htmlFor="domain-input" className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Domain or URL
+                </label>
+                <input
+                  id="domain-input"
+                  type="text"
+                  value={domainInput}
+                  onChange={(ev) => setDomainInput(ev.target.value)}
+                  placeholder="example.com"
+                  className="mt-2 w-full rounded-xl border border-slate-600/80 bg-slate-950/80 px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-cyan-500/50"
+                  autoComplete="off"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={domainScanLoading}
+                className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {domainScanLoading ? "Scanning…" : "Run scan"}
+              </button>
+            </form>
+            {domainScanError && (
+              <p className="mt-4 rounded-lg border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">{domainScanError}</p>
+            )}
+          </div>
+
+          {domainScanResult && (
+            <div className="space-y-4 rounded-2xl border border-slate-700/80 bg-slate-900/50 p-8">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-cyan-400/90">Results</p>
+                  <h3 className="mt-1 font-mono text-lg text-white">{domainScanResult.domain}</h3>
+                </div>
+                <div className="rounded-xl border border-slate-600 bg-slate-950/60 px-4 py-2 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Surface score</p>
+                  <p className="text-3xl font-extrabold tabular-nums text-cyan-300">{domainScanResult.score}</p>
+                  <p className="text-[10px] text-slate-500">0–100 (higher is better)</p>
+                </div>
+              </div>
+
+              {Array.isArray(domainScanResult.issues) && domainScanResult.issues.length > 0 && (
+                <div className="rounded-xl border border-amber-500/25 bg-amber-950/20 px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-amber-200/90">Findings</p>
+                  <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-amber-100/90">
+                    {domainScanResult.issues.map((issue, i) => (
+                      <li key={i}>{issue}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {Array.isArray(domainScanResult.checks) &&
+                  domainScanResult.checks.map((c) => (
+                    <div
+                      key={c.id}
+                      className={`rounded-xl border px-4 py-3 text-sm ${
+                        c.ok ? "border-emerald-500/30 bg-emerald-950/20 text-emerald-100/90" : "border-slate-600 bg-slate-950/40 text-slate-300"
+                      }`}
+                    >
+                      <span className="font-mono text-xs font-bold uppercase tracking-wide text-slate-500">{c.id}</span>
+                      <p className="mt-1 break-words text-slate-200">{c.detail}</p>
+                    </div>
+                  ))}
+              </div>
+
+              {domainScanResult.a_records?.length > 0 && (
+                <p className="text-xs text-slate-500">
+                  <span className="font-semibold text-slate-400">A records:</span> {domainScanResult.a_records.join(", ")}
+                </p>
+              )}
+            </div>
+          )}
         </motion.section>
       )}
 

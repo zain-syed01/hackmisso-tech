@@ -16,19 +16,27 @@ export function parseRecommendationText(text, source) {
   const head = text.slice(0, idx).trim();
   const tail = text.slice(idx + marker.length).trim();
 
-  const scoreMatch = head.match(/\(score\s*(\d+)\s*\/\s*100\)/i);
+  const scoreMatch =
+    head.match(/\(risk points:\s*(\d+)\)/i) || head.match(/\(score\s*(\d+)\s*\/\s*100\)/i);
   const score = scoreMatch ? scoreMatch[1] : null;
 
-  let question = head.replace(/^Strengthen:\s*/i, "").trim();
-  question = question.replace(/\s*\(\s*score\s*\d+\s*\/\s*100\s*\)\s*\.?\s*$/i, "").trim();
+  let question = head.replace(/^Strengthen:\s*/i, "").replace(/^Priority:\s*/i, "").trim();
+  question = question
+    .replace(/\s*\(\s*risk points:\s*\d+\s*\)\s*\.?\s*$/i, "")
+    .replace(/\s*\(\s*score\s*\d+\s*\/\s*100\s*\)\s*\.?\s*$/i, "")
+    .trim();
 
   const actionStarters = [
     "Assign a named owner",
+    "Assign an owner",
     "Document the desired",
+    "Document the control",
     "Review progress with",
+    "Review with your team",
     "Tie open gaps",
     "Map each open item",
     "Schedule a follow-up assessment",
+    "After changes, run this check",
   ];
 
   let actionStart = -1;

@@ -1,0 +1,258 @@
+{
+  "meta": {
+    "title": "HackMISSO 2026 Cyber Safety Check",
+    "version": "1.0",
+    "reading_level": "8th Grade",
+    "scoring_model": {
+      "ranges": [
+        {"min": 0, "max": 40, "level": "Low Risk", "color": "Green", "message": "Great job! Keep it up."},
+        {"min": 41, "max": 100, "level": "Medium Risk", "color": "Yellow", "message": "Some things need fixing."},
+        {"min": 101, "max": 160, "level": "High Risk", "color": "Orange", "message": "Many things need fixing soon."},
+        {"min": 161, "max": 500, "level": "Critical Risk", "color": "Red", "message": "Fix these problems now!"}
+      ],
+      "option_weights": {"A": 25, "B": 15, "C": 5, "D": 0}
+    }
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "category": "Login Safety",
+      "text": "How do workers log into email and important accounts?",
+      "framework": {"nist": "Protect", "cis": "6", "iso": "A.9.2"},
+      "options": [
+        {"id": "A", "text": "Just a password", "score": 25, "risk": "Critical", "priority": 1, "cost": "Free", "ai_rec": "Danger: Add two-step login now. Passwords alone can be stolen."},
+        {"id": "B", "text": "Two-step login on some accounts", "score": 15, "risk": "High", "priority": 1, "cost": "Free", "ai_rec": "Risky: Turn on two-step login for ALL accounts."},
+        {"id": "C", "text": "Two-step login on email only", "score": 5, "risk": "Medium", "priority": 2, "cost": "Free", "ai_rec": "Good: Add two-step login to banking and admin too."},
+        {"id": "D", "text": "Two-step login on all accounts", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Check this once a year."}
+      ]
+    },
+    {
+      "id": "q2",
+      "category": "Login Safety",
+      "text": "How are worker accounts set up?",
+      "framework": {"nist": "Protect", "cis": "5", "iso": "A.9.2"},
+      "options": [
+        {"id": "A", "text": "Everyone shares the same login", "score": 25, "risk": "Critical", "priority": 1, "cost": "Free", "ai_rec": "Danger: Give each person their own login. Sharing is unsafe."},
+        {"id": "B", "text": "Each person has a login, but old ones stay", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Remove logins when people leave."},
+        {"id": "C", "text": "Each person has a login, reviewed yearly", "score": 5, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Good: Try to review every 6 months."},
+        {"id": "D", "text": "Each person has a login, auto-reviewed", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Keep this running."}
+      ]
+    },
+    {
+      "id": "q3",
+      "category": "Login Safety",
+      "text": "What happens when a worker quits or is fired?",
+      "framework": {"nist": "Protect", "cis": "5", "iso": "A.8.3"},
+      "options": [
+        {"id": "A", "text": "Access removed after a week or more", "score": 25, "risk": "Critical", "priority": 1, "cost": "Free", "ai_rec": "Danger: Remove access on their last day."},
+        {"id": "B", "text": "Access removed in 2-7 days", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Remove access within 24 hours."},
+        {"id": "C", "text": "Access removed within 24 hours", "score": 5, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Good: Try to automate this."},
+        {"id": "D", "text": "Access removed automatically on last day", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Keep this running."}
+      ]
+    },
+    {
+      "id": "q4",
+      "category": "Login Safety",
+      "text": "Who can add new programs to work computers?",
+      "framework": {"nist": "Protect", "cis": "2", "iso": "A.12.6"},
+      "options": [
+        {"id": "A", "text": "Anyone can add programs", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Only let IT staff add programs."},
+        {"id": "B", "text": "Boss must approve first", "score": 10, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Okay: Have IT staff approve instead."},
+        {"id": "C", "text": "Only IT staff can add programs", "score": 5, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Good: Make a list of approved programs."},
+        {"id": "D", "text": "Only IT staff + approved list only", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Keep the list updated."}
+      ]
+    },
+    {
+      "id": "q5",
+      "category": "Data Safety",
+      "text": "How often do you save copies of important files?",
+      "framework": {"nist": "Recover", "cis": "20", "iso": "A.12.3"},
+      "options": [
+        {"id": "A", "text": "Never or only by hand", "score": 25, "risk": "Critical", "priority": 1, "cost": "$5-10/mo", "ai_rec": "Danger: Start automatic backups today. You could lose everything."},
+        {"id": "B", "text": "Once a month", "score": 15, "risk": "High", "priority": 2, "cost": "$5-10/mo", "ai_rec": "Risky: Back up weekly or daily."},
+        {"id": "C", "text": "Once a week", "score": 5, "risk": "Medium", "priority": 3, "cost": "$5-10/mo", "ai_rec": "Good: Back up daily to lose less data."},
+        {"id": "D", "text": "Every day automatically", "score": 0, "risk": "Low", "priority": 3, "cost": "$5-10/mo", "ai_rec": "Perfect! Test restoring files monthly."}
+      ]
+    },
+    {
+      "id": "q6",
+      "category": "Data Safety",
+      "text": "Where do you keep backup copies?",
+      "framework": {"nist": "Recover", "cis": "20", "iso": "A.12.3"},
+      "options": [
+        {"id": "A", "text": "Same place as the original files", "score": 25, "risk": "Critical", "priority": 1, "cost": "$5-10/mo", "ai_rec": "Danger: Keep one copy in a different place (cloud or off-site)."},
+        {"id": "B", "text": "External hard drive at the office only", "score": 15, "risk": "High", "priority": 2, "cost": "$5-10/mo", "ai_rec": "Risky: Add cloud backup for safety."},
+        {"id": "C", "text": "Cloud + office copy", "score": 5, "risk": "Medium", "priority": 3, "cost": "$5-10/mo", "ai_rec": "Good: Test restoring from cloud."},
+        {"id": "D", "text": "Cloud + off-site + tested", "score": 0, "risk": "Low", "priority": 3, "cost": "$5-10/mo", "ai_rec": "Perfect! Keep testing regularly."}
+      ]
+    },
+    {
+      "id": "q7",
+      "category": "Data Safety",
+      "text": "How do you protect private customer or business data?",
+      "framework": {"nist": "Protect", "cis": "13", "iso": "A.10.1"},
+      "options": [
+        {"id": "A", "text": "Not protected at all", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Turn on encryption (data locking) on all devices."},
+        {"id": "B", "text": "Some files are protected", "score": 10, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Okay: Protect ALL private files."},
+        {"id": "C", "text": "All private files are protected", "score": 5, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Good: Lock entire hard drives too."},
+        {"id": "D", "text": "All devices have full lock protection", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Keep encryption keys safe."}
+      ]
+    },
+    {
+      "id": "q8",
+      "category": "Data Safety",
+      "text": "Do you know where all your private data is stored?",
+      "framework": {"nist": "Identify", "cis": "1", "iso": "A.8.1"},
+      "options": [
+        {"id": "A", "text": "No list exists", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Make a simple list of what data you have and where."},
+        {"id": "B", "text": "Partial list", "score": 10, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Okay: Finish the list for all data."},
+        {"id": "C", "text": "Complete list written down", "score": 5, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Good: Mark what data is private vs public."},
+        {"id": "D", "text": "Complete list + private/public marked", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Review this list yearly."}
+      ]
+    },
+    {
+      "id": "q9",
+      "category": "Device Safety",
+      "text": "How are computers and phones locked?",
+      "framework": {"nist": "Protect", "cis": "1", "iso": "A.9.2"},
+      "options": [
+        {"id": "A", "text": "No locks at all", "score": 25, "risk": "Critical", "priority": 1, "cost": "Free", "ai_rec": "Danger: Add passwords or PINs to all devices now."},
+        {"id": "B", "text": "Some devices have locks", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Lock ALL devices."},
+        {"id": "C", "text": "All devices have locks", "score": 5, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Good: Add auto-lock and fingerprint/face unlock."},
+        {"id": "D", "text": "Locks + auto-lock + fingerprint/face", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Keep this updated."}
+      ]
+    },
+    {
+      "id": "q10",
+      "category": "Device Safety",
+      "text": "How long before devices lock themselves when not used?",
+      "framework": {"nist": "Protect", "cis": "1", "iso": "A.9.4"},
+      "options": [
+        {"id": "A", "text": "Never lock automatically", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Set auto-lock to 5 minutes or less."},
+        {"id": "B", "text": "15 minutes or more", "score": 10, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Okay: Change to 5 minutes."},
+        {"id": "C", "text": "5-10 minutes", "score": 5, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Good: Change to under 5 minutes."},
+        {"id": "D", "text": "Under 5 minutes", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Keep this setting."}
+      ]
+    },
+    {
+      "id": "q11",
+      "category": "Device Safety",
+      "text": "What virus protection is installed?",
+      "framework": {"nist": "Protect", "cis": "8", "iso": "A.12.2"},
+      "options": [
+        {"id": "A", "text": "None", "score": 25, "risk": "Critical", "priority": 1, "cost": "Free", "ai_rec": "Danger: Install virus protection on all devices now."},
+        {"id": "B", "text": "Some devices have protection", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Install on ALL devices."},
+        {"id": "C", "text": "All devices have protection", "score": 5, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Good: Turn on automatic updates."},
+        {"id": "D", "text": "Protection + auto updates + advanced tools", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Keep definitions updated."}
+      ]
+    },
+    {
+      "id": "q12",
+      "category": "Device Safety",
+      "text": "How do you handle software updates?",
+      "framework": {"nist": "Protect", "cis": "7", "iso": "A.12.6"},
+      "options": [
+        {"id": "A", "text": "Never update", "score": 25, "risk": "Critical", "priority": 1, "cost": "Free", "ai_rec": "Danger: Turn on automatic updates now."},
+        {"id": "B", "text": "Update when we remember", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Turn on automatic updates."},
+        {"id": "C", "text": "Update within 30 days", "score": 5, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Good: Update within 7 days."},
+        {"id": "D", "text": "Automatic updates turned on", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Keep this running."}
+      ]
+    },
+    {
+      "id": "q13",
+      "category": "Internet Safety",
+      "text": "How is your Wi-Fi set up?",
+      "framework": {"nist": "Protect", "cis": "12", "iso": "A.13.1"},
+      "options": [
+        {"id": "A", "text": "One network for everyone", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Create a separate Guest Wi-Fi for visitors."},
+        {"id": "B", "text": "Guest network exists but not separated", "score": 10, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Okay: Turn on network isolation."},
+        {"id": "C", "text": "Separate guest network", "score": 5, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Good: Add extra separation for sensitive data."},
+        {"id": "D", "text": "Separate guest + extra separation", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Keep networks separated."}
+      ]
+    },
+    {
+      "id": "q14",
+      "category": "Internet Safety",
+      "text": "Do you use a firewall (network barrier)?",
+      "framework": {"nist": "Protect", "cis": "12", "iso": "A.13.1"},
+      "options": [
+        {"id": "A", "text": "No firewall", "score": 25, "risk": "Critical", "priority": 1, "cost": "Free", "ai_rec": "Danger: Turn on firewall on router and computers."},
+        {"id": "B", "text": "Basic firewall on", "score": 10, "risk": "Medium", "priority": 2, "cost": "Free", "ai_rec": "Okay: Set up rules to block unwanted traffic."},
+        {"id": "C", "text": "Firewall rules set up", "score": 5, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Good: Add monitoring and logs."},
+        {"id": "D", "text": "Firewall + monitoring + logs", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Review logs monthly."}
+      ]
+    },
+    {
+      "id": "q15",
+      "category": "Internet Safety",
+      "text": "Did you change the default passwords on routers and network gear?",
+      "framework": {"nist": "Protect", "cis": "4", "iso": "A.9.2"},
+      "options": [
+        {"id": "A", "text": "Don't know", "score": 25, "risk": "Critical", "priority": 1, "cost": "Free", "ai_rec": "Danger: Change all default passwords now. They are public knowledge."},
+        {"id": "B", "text": "Some changed", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Change ALL default passwords."},
+        {"id": "C", "text": "All changed", "score": 5, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Good: Write them down and change yearly."},
+        {"id": "D", "text": "All changed + written down + changed yearly", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Keep changing them."}
+      ]
+    },
+    {
+      "id": "q16",
+      "category": "Internet Safety",
+      "text": "How do you protect work done from home or outside the office?",
+      "framework": {"nist": "Protect", "cis": "12", "iso": "A.13.2"},
+      "options": [
+        {"id": "A", "text": "No protection", "score": 25, "risk": "Critical", "priority": 1, "cost": "$5-15/mo", "ai_rec": "Danger: Require VPN (secure tunnel) for all remote work."},
+        {"id": "B", "text": "Some workers use VPN", "score": 15, "risk": "High", "priority": 2, "cost": "$5-15/mo", "ai_rec": "Risky: Require VPN for ALL remote workers."},
+        {"id": "C", "text": "VPN required for all remote work", "score": 5, "risk": "Medium", "priority": 3, "cost": "$5-15/mo", "ai_rec": "Good: Add two-step login and device checks."},
+        {"id": "D", "text": "VPN + two-step login + device checks", "score": 0, "risk": "Low", "priority": 3, "cost": "$5-15/mo", "ai_rec": "Perfect! Keep this running."}
+      ]
+    },
+    {
+      "id": "q17",
+      "category": "Emergency Plan",
+      "text": "Do you have a plan for what to do if you get hacked?",
+      "framework": {"nist": "Respond", "cis": "17", "iso": "A.16.1"},
+      "options": [
+        {"id": "A", "text": "No plan", "score": 25, "risk": "Critical", "priority": 1, "cost": "Free", "ai_rec": "Danger: Write a simple checklist: 1. Disconnect 2. Change passwords 3. Call for help."},
+        {"id": "B", "text": "We talked about it but nothing written", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Write it down and share with everyone."},
+        {"id": "C", "text": "Written plan exists", "score": 5, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Good: Test the plan once a year."},
+        {"id": "D", "text": "Written + tested + updated yearly", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Keep it updated."}
+      ]
+    },
+    {
+      "id": "q18",
+      "category": "Emergency Plan",
+      "text": "When did you last test restoring files from backup?",
+      "framework": {"nist": "Recover", "cis": "20", "iso": "A.12.3"},
+      "options": [
+        {"id": "A", "text": "Never", "score": 25, "risk": "Critical", "priority": 1, "cost": "Free", "ai_rec": "Danger: Test restoring files now. Backups might not work."},
+        {"id": "B", "text": "Over 1 year ago", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Test every 6 months."},
+        {"id": "C", "text": "6-12 months ago", "score": 5, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Good: Test every 3 months."},
+        {"id": "D", "text": "Within last 6 months", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Keep testing on schedule."}
+      ]
+    },
+    {
+      "id": "q19",
+      "category": "Emergency Plan",
+      "text": "How often do workers learn about spotting scam emails?",
+      "framework": {"nist": "Protect", "cis": "14", "iso": "A.8.2"},
+      "options": [
+        {"id": "A", "text": "Never", "score": 25, "risk": "Critical", "priority": 1, "cost": "Free", "ai_rec": "Danger: Train workers on scam emails now."},
+        {"id": "B", "text": "Only when first hired", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Train at least once a year."},
+        {"id": "C", "text": "Once a year", "score": 5, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Good: Add fake scam email tests."},
+        {"id": "D", "text": "Yearly + fake scam email tests", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Keep tests running."}
+      ]
+    },
+    {
+      "id": "q20",
+      "category": "Emergency Plan",
+      "text": "Do you know who to call if you think you've been hacked?",
+      "framework": {"nist": "Respond", "cis": "17", "iso": "A.16.1"},
+      "options": [
+        {"id": "A", "text": "No one assigned", "score": 15, "risk": "High", "priority": 2, "cost": "Free", "ai_rec": "Risky: Make a contact list with names and numbers."},
+        {"id": "B", "text": "One person knows", "score": 10, "risk": "Medium", "priority": 3, "cost": "Free", "ai_rec": "Okay: Write down a full contact list."},
+        {"id": "C", "text": "Contact list written down", "score": 5, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Good: Add who calls who first."},
+        {"id": "D", "text": "Contact list + call order written", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Review yearly."}
+      ]
+    }
+  ]
+}

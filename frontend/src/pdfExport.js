@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import { ASSESSMENT_DATA, QUESTION_ORDER } from "./assessmentData.js";
+import { ASSESSMENT_DATA, ASSESSMENT_META, MAX_RAW_RISK, QUESTION_ORDER } from "./assessmentData.js";
 
 const MARGIN = 18;
 const PAGE_BOTTOM = 280;
@@ -56,7 +56,7 @@ export function downloadAssessmentPdf({ answers, lastReport, exportedAt }) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  y = paragraph(doc, "RoostGuard — Cybersecurity Assessment", MARGIN, y, maxW);
+  y = paragraph(doc, "ClearRisk — Cybersecurity Assessment", MARGIN, y, maxW);
   y += 4;
 
   doc.setFont("helvetica", "normal");
@@ -80,13 +80,15 @@ export function downloadAssessmentPdf({ answers, lastReport, exportedAt }) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     const s = lastReport.score;
-    y = paragraph(
-      doc,
-      `Overall score: ${s}% — ${postureLabel(s)} (composite across 20 controls).`,
-      MARGIN,
-      y,
-      maxW
-    );
+    const rt = lastReport.riskTotal;
+    const band = lastReport.riskBand;
+    const bandMsg = lastReport.riskBandMessage;
+    let line = `Posture score: ${s}% — ${postureLabel(s)}. ${ASSESSMENT_META.title}.`;
+    if (typeof rt === "number" && band) {
+      line += ` Raw risk index: ${Math.round(rt)} / ${MAX_RAW_RISK} (${band}).`;
+      if (bandMsg) line += ` ${bandMsg}`;
+    }
+    y = paragraph(doc, line, MARGIN, y, maxW);
     y += 2;
     if (lastReport.savedAt) {
       y = paragraph(doc, `Report saved: ${new Date(lastReport.savedAt).toLocaleString()}`, MARGIN, y, maxW);
@@ -154,5 +156,5 @@ export function downloadAssessmentPdf({ answers, lastReport, exportedAt }) {
   });
 
   const stamp = new Date(exportedAt).toISOString().slice(0, 10);
-  doc.save(`roostguard-assessment-${stamp}.pdf`);
+  doc.save(`clearrisk-assessment-${stamp}.pdf`);
 }

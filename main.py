@@ -4,122 +4,61 @@ import json
 import logging
 import os
 import re
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, RootModel, field_validator
 
-MAX_SCORE = 2000
-
-ASSESSMENT_DATA: dict[str, dict[str, Any]] = {
-    "q1_mfa": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Do users have Multi-Factor Authentication (MFA) enabled?",
-        "risk_context": "Credential theft and account takeover.",
-    },
-    "q2_remote": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "How is remote network access secured?",
-        "risk_context": "Unsecured RDP or VPN access.",
-    },
-    "q3_privilege": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Are administrative rights restricted to necessary personnel only?",
-        "risk_context": "Excessive privileges leading to insider threats or malware spread.",
-    },
-    "q4_offboarding": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Are access rights revoked immediately when an employee leaves?",
-        "risk_context": "Former employee unauthorized access.",
-    },
-    "q5_encryption_rest": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Are hard drives on company laptops fully encrypted?",
-        "risk_context": "Data theft from lost or stolen physical devices.",
-    },
-    "q6_encryption_transit": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Is sensitive data encrypted when shared over email or file transfers?",
-        "risk_context": "Interception of sensitive data in transit.",
-    },
-    "q7_backup_freq": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Are critical systems and data backed up automatically?",
-        "risk_context": "Data loss from hardware failure or ransomware.",
-    },
-    "q8_backup_test": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "How often are backups tested for successful restoration?",
-        "risk_context": "Corrupted backups failing during an emergency.",
-    },
-    "q9_irp": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Do you have a written Incident Response Plan (IRP)?",
-        "risk_context": "Delayed and disorganized response to active breaches.",
-    },
-    "q10_logs": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Are system and network logs retained and reviewed?",
-        "risk_context": "Inability to perform forensic analysis after an attack.",
-    },
-    "q11_training": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "How frequently do employees undergo security awareness training?",
-        "risk_context": "Human error and susceptibility to social engineering.",
-    },
-    "q12_phishing": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Do you conduct simulated phishing tests on employees?",
-        "risk_context": "Inability to spot targeted phishing emails.",
-    },
-    "q13_reporting": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Is there a clear, known process for employees to report suspicious activity?",
-        "risk_context": "Unreported security incidents escalating quietly.",
-    },
-    "q14_vendor": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Do you assess the security posture of third-party vendors?",
-        "risk_context": "Supply chain attacks originating from vendor networks.",
-    },
-    "q15_shadow_it": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Do you control and monitor the use of unsanctioned cloud apps?",
-        "risk_context": "Data leakage through unapproved third-party applications.",
-    },
-    "q16_patching": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Are operating systems and third-party applications updated automatically?",
-        "risk_context": "Exploitation of known software vulnerabilities.",
-    },
-    "q17_edr": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Are endpoints protected by modern Antivirus or EDR software?",
-        "risk_context": "Malware and ransomware executing freely on workstations.",
-    },
-    "q18_wifi": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Is the corporate Wi-Fi network segmented from guest access?",
-        "risk_context": "Unauthorized users sniffing traffic or accessing internal servers.",
-    },
-    "q19_physical": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Is physical access to servers and network equipment restricted?",
-        "risk_context": "Physical tampering or hardware theft.",
-    },
-    "q20_bcp": {
-        "points": {"opt0": 0, "opt1": 50, "opt2": 100},
-        "text": "Do you have a Business Continuity Plan to operate during an outage?",
-        "risk_context": "Prolonged operational downtime and revenue loss.",
-    },
-}
+from domain_security import scan_domain
 
 logger = logging.getLogger(__name__)
 
+_BASE = Path(__file__).resolve().parent
+with (_BASE / "assessment_questions.json").open(encoding="utf-8") as _f:
+    _BUNDLE: dict[str, Any] = json.load(_f)
+
+SCORING_RANGES: list[dict[str, Any]] = _BUNDLE["meta"]["scoring_model"]["ranges"]
+
+
+def _build_assessment_data(questions: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    data: dict[str, dict[str, Any]] = {}
+    for q in questions:
+        qid = q["id"]
+        points = {str(opt["id"]): int(opt["score"]) for opt in q["options"]}
+        option_meta = {
+            str(opt["id"]): {
+                "ai_rec": str(opt.get("ai_rec", "")),
+                "label": str(opt.get("text", "")),
+            }
+            for opt in q["options"]
+        }
+        data[qid] = {
+            "text": q["text"],
+            "category": q.get("category", ""),
+            "points": points,
+            "options": option_meta,
+        }
+    return data
+
+
+ASSESSMENT_DATA: dict[str, dict[str, Any]] = _build_assessment_data(_BUNDLE["questions"])
+QUESTION_IDS: list[str] = [str(q["id"]) for q in _BUNDLE["questions"]]
+MAX_RAW_RISK: int = sum(max(d["points"].values()) for d in ASSESSMENT_DATA.values())
+
+
+def _risk_band(risk_total: float) -> tuple[str, str]:
+    t = int(round(risk_total))
+    for r in SCORING_RANGES:
+        if int(r["min"]) <= t <= int(r["max"]):
+            return str(r["level"]), str(r.get("message", ""))
+    if t < int(SCORING_RANGES[0]["min"]):
+        return str(SCORING_RANGES[0]["level"]), str(SCORING_RANGES[0].get("message", ""))
+    return str(SCORING_RANGES[-1]["level"]), str(SCORING_RANGES[-1].get("message", ""))
+
 
 def _extract_gemini_text(response: Any) -> str:
-    """Safely read text from a GenerateContentResponse (`.text` can raise if blocked/empty)."""
     try:
         t = getattr(response, "text", None)
         if t:
@@ -141,21 +80,21 @@ def _extract_gemini_text(response: Any) -> str:
 
 
 def _failed_checks(answers: dict[str, str]) -> list[dict[str, str]]:
-    """Questions where the selected option scored less than 100."""
     failed: list[dict[str, str]] = []
-    for qid in sorted(ASSESSMENT_DATA.keys()):
+    for qid in QUESTION_IDS:
         opt_id = answers[qid]
         pts = ASSESSMENT_DATA[qid]["points"][opt_id]
-        if pts < 100:
-            q = ASSESSMENT_DATA[qid]
+        if pts > 0:
+            om = ASSESSMENT_DATA[qid]["options"][opt_id]
             failed.append(
                 {
                     "id": qid,
-                    "text": q["text"],
-                    "risk_context": q["risk_context"],
-                    "points_earned": str(pts),
+                    "text": ASSESSMENT_DATA[qid]["text"],
+                    "risk_context": om["ai_rec"],
+                    "risk_points": str(pts),
                 }
             )
+    failed.sort(key=lambda x: -int(x["risk_points"]))
     return failed
 
 
@@ -176,24 +115,23 @@ def _parse_json_array_of_strings(raw: str) -> list[str]:
 
 
 def _fallback_recommendations(failed: list[dict[str, str]]) -> list[str]:
-    """Deterministic recommendations when Gemini is unavailable or fails. Always returns 3 strings."""
-    ranked = sorted(failed, key=lambda x: int(x["points_earned"]))
+    ranked = sorted(failed, key=lambda x: -int(x["risk_points"]))
     closers = [
-        "Assign a named owner, target dates, and verify completion.",
-        "Document the desired end state, then track remediation in your risk register.",
-        "Review progress with leadership quarterly and adjust priorities as threats change.",
+        "Assign an owner and a target date to close this gap.",
+        "Document the control you want, then verify it monthly.",
+        "Review with your team quarterly and update your safety checklist.",
     ]
     recs: list[str] = []
     for idx, item in enumerate(ranked[:3]):
         closer = closers[min(idx, len(closers) - 1)]
         recs.append(
-            f"Strengthen: {item['text']} (score {item['points_earned']}/100). "
-            f"Exposure includes {item['risk_context']} {closer}"
+            f"Priority: {item['text']} (risk points: {item['risk_points']}). "
+            f"{item['risk_context']} {closer}"
         )
     fillers = [
-        "Tie open gaps to business impact and fund remediation in order of severity.",
-        "Map each open item to an owner in your risk register with measurable outcomes.",
-        "Schedule a follow-up assessment after remediation to confirm controls hold.",
+        "Tie open items to everyday impact so fixes get priority.",
+        "Write down who is responsible for each fix and check progress weekly.",
+        "After changes, run this check again to confirm risk went down.",
     ]
     i = 0
     while len(recs) < 3:
@@ -203,7 +141,6 @@ def _fallback_recommendations(failed: list[dict[str, str]]) -> list[str]:
 
 
 def _gemini_three_recommendations(failed: list[dict[str, str]]) -> list[str]:
-    """Call Gemini; return exactly 3 strings. Raises on failure."""
     import google.generativeai as genai  # noqa: PLC0415
 
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -211,22 +148,22 @@ def _gemini_three_recommendations(failed: list[dict[str, str]]) -> list[str]:
         raise ValueError("GEMINI_API_KEY not set")
 
     genai.configure(api_key=api_key)
-    model_name = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+    model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
     model = genai.GenerativeModel(model_name)
 
     failed_lines = []
     for item in failed:
         failed_lines.append(
-            f"- {item['text']} (score {item['points_earned']}/100 on this control). Risk: {item['risk_context']}"
+            f"- {item['text']} (risk points {item['risk_points']}). Guidance: {item['risk_context']}"
         )
     failed_block = "\n".join(failed_lines)
 
-    prompt = f"""You are an expert cybersecurity consultant. The user failed these security checks:
+    prompt = f"""You are an expert cybersecurity coach writing for small businesses (8th-grade reading level). The user chose weaker answers on these topics:
 {failed_block}
 
-Generate exactly 3 specific, actionable, and prioritized security recommendations in plain English. Explain the risks clearly. Format as a JSON array of strings.
+Generate exactly 3 specific, friendly, actionable recommendations as a JSON array of strings only. No markdown fences.
 
-Output only valid JSON (a JSON array of strings), with no markdown fences or other text."""
+Output only valid JSON (array of strings)."""
 
     response = model.generate_content(prompt)
     raw = _extract_gemini_text(response)
@@ -240,7 +177,6 @@ Output only valid JSON (a JSON array of strings), with no markdown fences or oth
 
 
 def _recommendations_for_failed(failed: list[dict[str, str]]) -> tuple[list[str], str]:
-    """Returns (recommendations, source) where source is 'gemini' or 'fallback'."""
     if os.environ.get("GEMINI_API_KEY"):
         try:
             return _gemini_three_recommendations(failed), "gemini"
@@ -263,11 +199,18 @@ class AnalyzeRequest(RootModel[dict[str, str]]):
 
 class AnalyzeResponse(BaseModel):
     overall_risk_score: float
+    risk_total: float
+    risk_band: str
+    risk_band_message: str
     ai_recommendations: list[str]
     recommendation_source: str | None = None
 
 
-app = FastAPI(title="RoostGuard Assessment API")
+class DomainScanRequest(BaseModel):
+    domain: str
+
+
+app = FastAPI(title="ClearRisk Assessment API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -302,8 +245,8 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
                 detail["unknown_question_ids"] = extra
             raise HTTPException(status_code=400, detail=detail)
 
-        total_score = 0
-        for qid in sorted(expected_ids):
+        risk_total = 0.0
+        for qid in QUESTION_IDS:
             opt_id = answers[qid]
             pts_map = ASSESSMENT_DATA[qid]["points"]
             if opt_id not in pts_map:
@@ -314,14 +257,18 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
                         "valid_options": sorted(pts_map.keys()),
                     },
                 )
-            total_score += int(pts_map[opt_id])
+            risk_total += float(pts_map[opt_id])
 
-        overall_risk_score = round((total_score / MAX_SCORE) * 100.0, 2)
+        posture = round(100.0 * (1.0 - risk_total / MAX_RAW_RISK), 2) if MAX_RAW_RISK else 100.0
+        band, band_msg = _risk_band(risk_total)
 
         failed = _failed_checks(answers)
         if not failed:
             return AnalyzeResponse(
-                overall_risk_score=overall_risk_score,
+                overall_risk_score=posture,
+                risk_total=risk_total,
+                risk_band=band,
+                risk_band_message=band_msg,
                 ai_recommendations=[],
                 recommendation_source=None,
             )
@@ -333,7 +280,10 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
             source = "fallback"
 
         return AnalyzeResponse(
-            overall_risk_score=float(overall_risk_score),
+            overall_risk_score=float(posture),
+            risk_total=float(risk_total),
+            risk_band=band,
+            risk_band_message=band_msg,
             ai_recommendations=ai_recommendations,
             recommendation_source=source,
         )
@@ -344,6 +294,20 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
         raise HTTPException(
             status_code=500,
             detail=f"Server error during analysis: {exc!s}. Check the uvicorn terminal for the full traceback.",
+        ) from exc
+
+
+@app.post("/api/domain-scan")
+def domain_scan(body: DomainScanRequest) -> dict[str, Any]:
+    try:
+        return scan_domain(body.domain)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("POST /api/domain-scan failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Domain scan failed: {exc!s}",
         ) from exc
 
 
