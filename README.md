@@ -2,6 +2,31 @@
 
 **ClearRisk** — HackMISSO-style cyber safety questionnaire (JSON-driven questions + scoring bands), FastAPI analysis, **Gemini**-powered recommendations when configured, passive **domain / email-auth / HTTPS** checks, and a React (Vite) UI.
 
+## Project structure
+
+```
+repo root/
+├── main.py                 # FastAPI: /api/analyze, /api/domain-scan, /api/ai-status
+├── domain_security.py      # Passive domain / DNS / mail-auth / HTTPS checks
+├── assessment_questions.json   # Questions, option scores, rubric (single source of truth)
+├── requirements.txt
+├── runtime.txt             # Python version hint (e.g. Render)
+├── .env.example            # Copy to .env for local API (GEMINI_API_KEY, etc.)
+├── package.json            # Convenience npm scripts; real UI is under frontend/
+├── scripts/
+│   └── verify_gemini.py    # Optional: test Gemini key + model
+├── docs/
+│   └── DEVELOPMENT.md      # Quick map: which file to edit for what
+└── frontend/               # Vite + React SPA (deploy this folder to Vercel)
+    ├── src/              # App.jsx, assessmentData.js, pdfExport.js, …
+    ├── vite.config.js    # Dev proxy /api → localhost:8000
+    └── vercel.json       # SPA rewrites for production
+```
+
+For a short “where do I change X?” table, see **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**.
+
+The repository intentionally contains **only** what the app needs: backend Python, `assessment_questions.json`, the `frontend/` UI, and small tooling under `scripts/`. Legacy design-only exports were removed to keep clones small and the layout obvious.
+
 ## System architecture
 
 ```mermaid
@@ -38,18 +63,6 @@ Criteria mirror the [HackMISSO Technical Grading Rubric](https://docs.google.com
 | **UI/UX** | Guided questionnaire, review step, report dashboard, domain scan results, import/export PDF + JSON. |
 
 *Presentation* is outside the repo; use this README + live demo for judges.
-
-## Repository layout
-
-| Path | Description |
-|------|-------------|
-| `main.py` | FastAPI app (`/api/analyze`, `/api/domain-scan`, `/api/ai-status`) |
-| `domain_security.py` | DNS / SPF / DMARC / HTTPS / TLS helpers |
-| `assessment_questions.json` | Question text, categories, options, and risk weights |
-| `scripts/verify_gemini.py` | **Run this** to confirm your API key and model work |
-| `requirements.txt` | Python dependencies |
-| `frontend/` | React + Vite UI |
-| `stitch_clearrisk_assessment_view/` | Additional Stitch / design exports |
 
 ## Prerequisites
 
