@@ -5,7 +5,27 @@ import { parseRecommendationText } from "./recommendationUtils.js";
 import { downloadAssessmentPdf } from "./pdfExport.js";
 
 const REPORT_STORAGE_KEY = "clearrisk_last_report";
-const DOMAIN_SCAN_URL = "/api/domain-scan";
+
+/** Production: set `VITE_API_BASE` on Vercel to your FastAPI origin (no trailing slash), e.g. https://api-xxx.railway.app */
+const rawApiBase = import.meta.env.VITE_API_BASE?.trim().replace(/\/$/, "") ?? "";
+const legacyAnalyzeUrl = import.meta.env.VITE_API_URL?.trim() ?? "";
+const API_URL = rawApiBase ? `${rawApiBase}/api/analyze` : legacyAnalyzeUrl || "/api/analyze";
+const DOMAIN_SCAN_URL = rawApiBase
+  ? `${rawApiBase}/api/domain-scan`
+  : legacyAnalyzeUrl
+    ? legacyAnalyzeUrl.replace(/\/api\/analyze\/?$/i, "/api/domain-scan")
+    : "/api/domain-scan";
+
+const hasRemoteApi = Boolean(rawApiBase) || Boolean(legacyAnalyzeUrl);
+
+function missingProductionApiMessage() {
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://your-app.vercel.app";
+  return (
+    "No backend URL is set for production. In Vercel → Project → Settings → Environment Variables, add VITE_API_BASE " +
+    "with your Render API origin only (example: https://your-service.onrender.com), then click Redeploy. " +
+    `On Render, set CORS_ALLOW_ORIGINS to ${origin} (https, no trailing slash).`
+  );
+}
 
 const DOMAIN_SCAN_GROUP_ORDER = ["dns", "email_auth", "certificate", "header"];
 const DOMAIN_SCAN_CHECK_ORDER = ["dns_a", "mx", "spf", "dmarc", "https", "tls_cert", "hsts", "http_to_https"];
@@ -53,9 +73,6 @@ function buildDomainScanCheckGroups(checks, checkGroupsMeta) {
   if (unmatched.length) out.push({ id: "_other", title: "Other", items: unmatched });
   return out;
 }
-
-/** Same-origin `/api` via Vite proxy → `http://127.0.0.1:8000`. Override with `VITE_API_URL` if needed. */
-const API_URL = import.meta.env.VITE_API_URL?.trim() || "/api/analyze";
 
 function formatApiErrorDetail(status, data) {
   const d = data?.detail;
@@ -613,6 +630,11 @@ export default function App() {
   }
 
   async function runAnalysis() {
+    if (import.meta.env.PROD && !hasRemoteApi) {
+      setError(missingProductionApiMessage());
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     setPhase("loading");
@@ -629,6 +651,17 @@ export default function App() {
       try {
         data = rawText ? JSON.parse(rawText) : {};
       } catch {
+        if (
+          res.status === 404 &&
+          rawText &&
+          (rawText.includes("NOT_FOUND") || rawText.toLowerCase().includes("could not be found"))
+        ) {
+          throw new Error(
+            import.meta.env.PROD && !hasRemoteApi
+              ? missingProductionApiMessage()
+              : `Nothing is listening at ${API_URL}. If you use Vercel for the UI, set VITE_API_BASE to your Render (or other) API URL and redeploy.`
+          );
+        }
         throw new Error(
           rawText
             ? `API did not return JSON (HTTP ${res.status}): ${rawText.slice(0, 280)}`
@@ -719,6 +752,10 @@ export default function App() {
       setDomainScanError("Enter a domain or URL (e.g. example.com).");
       return;
     }
+    if (import.meta.env.PROD && !hasRemoteApi) {
+      setDomainScanError(missingProductionApiMessage());
+      return;
+    }
     setDomainScanLoading(true);
     try {
       const res = await fetch(DOMAIN_SCAN_URL, {
@@ -731,6 +768,17 @@ export default function App() {
       try {
         data = rawText ? JSON.parse(rawText) : {};
       } catch {
+        if (
+          res.status === 404 &&
+          rawText &&
+          (rawText.includes("NOT_FOUND") || rawText.toLowerCase().includes("could not be found"))
+        ) {
+          throw new Error(
+            import.meta.env.PROD && !hasRemoteApi
+              ? missingProductionApiMessage()
+              : `Nothing is listening at ${DOMAIN_SCAN_URL}. Set VITE_API_BASE to your API server and redeploy.`
+          );
+        }
         throw new Error(
           rawText
             ? `API did not return JSON (HTTP ${res.status}): ${rawText.slice(0, 280)}`

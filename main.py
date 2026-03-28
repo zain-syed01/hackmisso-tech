@@ -35,6 +35,27 @@ def _refresh_env_from_dotenv() -> dict[str, Any]:
 
 _refresh_env_from_dotenv()
 
+
+def _cors_allow_origins() -> list[str]:
+    """Local dev origins plus optional comma-separated URLs from CORS_ALLOW_ORIGINS (e.g. your Vercel site)."""
+    origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+    ]
+    extra = (os.environ.get("CORS_ALLOW_ORIGINS") or "").strip()
+    if not extra:
+        return origins
+    for part in extra.split(","):
+        u = part.strip().rstrip("/")
+        if u and u not in origins:
+            origins.append(u)
+    return origins
+
+
 with (_BASE / "assessment_questions.json").open(encoding="utf-8") as _f:
     _BUNDLE: dict[str, Any] = json.load(_f)
 
@@ -409,14 +430,7 @@ app = FastAPI(title="ClearRisk Assessment API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:4173",
-        "http://127.0.0.1:4173",
-    ],
+    allow_origins=_cors_allow_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -120,6 +120,32 @@ Production build:
 npm run build
 ```
 
+## Deploying the UI on Vercel ([fork](https://github.com/zain-syed01/hackmisso-tech))
+
+Vercel hosts the **static React app** only. **FastAPI** (`main.py`) must run somewhere else (Railway, Render, Fly.io, your VPS, etc.) with `GEMINI_API_KEY` and optional `CORS_ALLOW_ORIGINS` set there.
+
+1. **Import** your GitHub repo in [Vercel](https://vercel.com/new).
+2. **Root Directory:** set to `frontend` (Framework Preset: Vite).
+3. **Project name:** you can name the project **ClearRisk** in Vercel. The default URL will be **lowercase**, e.g. `clearrisk.vercel.app` or `clearrisk-<hash>.vercel.app` if that name is taken. For a custom domain (e.g. `app.clearrisk.com`), add it under Project → Settings → Domains.
+4. **Environment variables** (Vercel → Settings → Environment Variables), for Production (and Preview if you want):
+   - `VITE_API_BASE` = your public API origin with **no** path, e.g. `https://your-api.railway.app`
+5. On the **API server**, set `CORS_ALLOW_ORIGINS` to your Vercel site origin(s), comma-separated, e.g. `https://clearrisk.vercel.app` (same URL users open in the browser, `https`, no trailing slash).
+
+`frontend/vercel.json` adds SPA rewrites so refreshes keep working.
+
+### API on Render
+
+1. [Dashboard](https://dashboard.render.com) → **New +** → **Web Service** → connect the same GitHub repo as Vercel (repo **root** is the API; do **not** use `frontend` as root here).
+2. **Runtime:** Python. **Build command:** `pip install -r requirements.txt`. **Start command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
+3. **Environment** (Render → your service → **Environment**):
+   - `GEMINI_API_KEY` — your Google AI key (optional; without it, recommendations use the built-in fallback).
+   - `CORS_ALLOW_ORIGINS` — your Vercel site URL(s), comma-separated, e.g. `https://clearrisk.vercel.app` (exactly what appears in the browser, `https`, no trailing slash).
+4. After the first deploy, copy the service URL (e.g. `https://clearrisk-api.onrender.com`) and set **`VITE_API_BASE`** on Vercel to that value (no `/api` suffix).
+
+Free web services **spin down** after idle; the first request after sleep can take ~30–60s.
+
+**If “Run analysis” shows HTTP 404 / NOT_FOUND:** the UI is calling `/api/...` on Vercel, which has no API. Set **`VITE_API_BASE`** on Vercel to your Render URL (see above), **Redeploy** the Vercel project, and set **`CORS_ALLOW_ORIGINS`** on Render to `https://hackmisso-tech.vercel.app` (or your actual Vercel URL).
+
 ## License
 
 See repository owner for licensing.
