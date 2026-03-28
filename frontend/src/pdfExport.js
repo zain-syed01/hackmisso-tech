@@ -5,6 +5,19 @@ const MARGIN = 18;
 const PAGE_BOTTOM = 280;
 const PAGE_W_MM = 210;
 
+const REC_SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
+
+function normalizeAndSortRecommendationsForPdf(recs) {
+  const list = Array.isArray(recs) ? recs : [];
+  const norm = list.map((r) => {
+    if (typeof r === "string") return { text: r, severity: "medium" };
+    const sev = String(r?.severity ?? "medium").toLowerCase();
+    const ok = Object.prototype.hasOwnProperty.call(REC_SEVERITY_ORDER, sev) ? sev : "medium";
+    return { text: String(r?.text ?? ""), severity: ok };
+  });
+  return norm.sort((a, b) => REC_SEVERITY_ORDER[a.severity] - REC_SEVERITY_ORDER[b.severity]);
+}
+
 function maxTextWidth(doc) {
   return PAGE_W_MM - MARGIN * 2;
 }
@@ -107,16 +120,18 @@ export function downloadAssessmentPdf({ answers, lastReport, exportedAt }) {
       y += 4;
     }
 
-    const recs = Array.isArray(lastReport.recommendations) ? lastReport.recommendations : [];
+    const recs = normalizeAndSortRecommendationsForPdf(lastReport.recommendations);
     if (recs.length > 0) {
       doc.setFont("helvetica", "bold");
       y = ensureSpace(doc, y, 2);
-      y = paragraph(doc, "Recommendations", MARGIN, y, maxW);
+      y = paragraph(doc, "Recommendations (most severe first)", MARGIN, y, maxW);
       y += 3;
       doc.setFont("helvetica", "normal");
 
       recs.forEach((rec, i) => {
-        const block = `${i + 1}. ${String(rec)}`;
+        const body = String(rec.text);
+        const sev = rec.severity ? `[${String(rec.severity).toUpperCase()}] ` : "";
+        const block = `${i + 1}. ${sev}${body}`;
         const lines = doc.splitTextToSize(block, maxW);
         y = ensureSpace(doc, y, Math.max(lines.length, 2));
         y = addLines(doc, lines, MARGIN, y);

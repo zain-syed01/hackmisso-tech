@@ -1,11 +1,58 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ASSESSMENT_DATA, ASSESSMENT_META, MAX_RAW_RISK, QUESTION_ORDER } from "./assessmentData.js";
+import { ASSESSMENT_DATA, QUESTION_ORDER } from "./assessmentData.js";
 import { parseRecommendationText } from "./recommendationUtils.js";
 import { downloadAssessmentPdf } from "./pdfExport.js";
 
 const REPORT_STORAGE_KEY = "clearrisk_last_report";
 const DOMAIN_SCAN_URL = "/api/domain-scan";
+
+const DOMAIN_SCAN_GROUP_ORDER = ["dns", "email_auth", "certificate", "header"];
+const DOMAIN_SCAN_CHECK_ORDER = ["dns_a", "mx", "spf", "dmarc", "https", "tls_cert", "hsts", "http_to_https"];
+
+function domainSurfaceScoreClass(score) {
+  const n = Number(score);
+  if (Number.isNaN(n)) return "text-cyan-300";
+  if (n >= 80) return "text-emerald-300";
+  if (n >= 55) return "text-amber-300";
+  return "text-red-300";
+}
+
+/** Group passive scan checks for display; tolerates older API payloads without `group`. */
+function buildDomainScanCheckGroups(checks, checkGroupsMeta) {
+  if (!Array.isArray(checks) || checks.length === 0) return [];
+  const orderIdx = (id) => {
+    const i = DOMAIN_SCAN_CHECK_ORDER.indexOf(id);
+    return i === -1 ? 999 : i;
+  };
+  const sorted = [...checks].sort((a, b) => {
+    const ga = DOMAIN_SCAN_GROUP_ORDER.indexOf(a.group || "");
+    const gb = DOMAIN_SCAN_GROUP_ORDER.indexOf(b.group || "");
+    const gai = ga === -1 ? 99 : ga;
+    const gbi = gb === -1 ? 99 : gb;
+    if (gai !== gbi) return gai - gbi;
+    return orderIdx(a.id) - orderIdx(b.id);
+  });
+  const titleMap = {
+    dns: "DNS",
+    email_auth: "Email authentication",
+    certificate: "Certificate",
+    header: "Headers",
+  };
+  if (Array.isArray(checkGroupsMeta)) {
+    for (const m of checkGroupsMeta) {
+      if (m?.id && m?.title) titleMap[m.id] = m.title;
+    }
+  }
+  const out = [];
+  for (const gid of DOMAIN_SCAN_GROUP_ORDER) {
+    const items = sorted.filter((c) => (c.group || "") === gid);
+    if (items.length) out.push({ id: gid, title: titleMap[gid] || gid, items });
+  }
+  const unmatched = sorted.filter((c) => !DOMAIN_SCAN_GROUP_ORDER.includes(c.group || ""));
+  if (unmatched.length) out.push({ id: "_other", title: "Other", items: unmatched });
+  return out;
+}
 
 /** Same-origin `/api` via Vite proxy → `http://127.0.0.1:8000`. Override with `VITE_API_URL` if needed. */
 const API_URL = import.meta.env.VITE_API_URL?.trim() || "/api/analyze";
@@ -39,6 +86,58 @@ function tierLabel(tier) {
   if (tier === "strong") return "Strong posture";
   if (tier === "elevated") return "Elevated exposure";
   return "Critical exposure";
+}
+
+const REC_SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
+
+/** Tailwind-safe class strings for recommendation severity (most severe first in sort). */
+const REC_SEVERITY_UI = {
+  critical: {
+    label: "Critical",
+    border: "border-red-500/50",
+    bg: "bg-red-950/35",
+    badge: "border-red-400/45 bg-red-500/15 text-red-200",
+    bar: "border-l-4 border-l-red-500",
+  },
+  high: {
+    label: "High",
+    border: "border-orange-500/45",
+    bg: "bg-orange-950/30",
+    badge: "border-orange-400/40 bg-orange-500/15 text-orange-200",
+    bar: "border-l-4 border-l-orange-500",
+  },
+  medium: {
+    label: "Medium",
+    border: "border-amber-500/40",
+    bg: "bg-amber-950/25",
+    badge: "border-amber-400/35 bg-amber-500/12 text-amber-200",
+    bar: "border-l-4 border-l-amber-500",
+  },
+  low: {
+    label: "Low",
+    border: "border-sky-500/40",
+    bg: "bg-sky-950/25",
+    badge: "border-sky-400/35 bg-sky-500/12 text-sky-200",
+    bar: "border-l-4 border-l-sky-500",
+  },
+};
+
+function normalizeRecommendationList(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((r) => {
+      if (typeof r === "string") {
+        return { text: r, severity: "medium" };
+      }
+      const sev = String(r?.severity ?? "medium").toLowerCase();
+      const sevOk = Object.prototype.hasOwnProperty.call(REC_SEVERITY_ORDER, sev) ? sev : "medium";
+      return { text: String(r?.text ?? "").trim(), severity: sevOk };
+    })
+    .filter((r) => r.text.length > 0);
+}
+
+function sortRecommendationsBySeverity(items) {
+  return [...items].sort((a, b) => REC_SEVERITY_ORDER[a.severity] - REC_SEVERITY_ORDER[b.severity]);
 }
 
 const stepVariants = {
@@ -90,7 +189,7 @@ function LoadingOverlay() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
       >
-        Generating intelligence…
+        Generating Report...
       </motion.p>
       <p className="mt-1 text-sm text-slate-500">ClearRisk is analyzing your responses</p>
       <div className="mt-8 flex gap-1.5">
@@ -107,20 +206,27 @@ function LoadingOverlay() {
   );
 }
 
-function RecommendationCard({ text, index, source }) {
+function RecommendationCard({ recommendation, index, source }) {
+  const { text, severity } = recommendation;
+  const theme = REC_SEVERITY_UI[severity] ?? REC_SEVERITY_UI.medium;
   const parsed = parseRecommendationText(text, source);
 
   if (parsed.mode === "prose") {
     return (
       <motion.article
-        className="rounded-xl border border-slate-700/60 bg-slate-950/50 p-5"
+        className={`rounded-xl border pl-5 pr-5 py-5 ${theme.border} ${theme.bg} ${theme.bar}`}
         initial={{ opacity: 0, x: -12 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.55 + index * 0.06, duration: 0.35 }}
       >
-        <div className="flex gap-4">
+        <div className="flex flex-wrap items-start gap-3">
           <span className="font-mono text-sm font-bold text-cyan-500/90">{String(index + 1).padStart(2, "0")}</span>
-          <p className="text-sm leading-relaxed text-slate-300">{parsed.body}</p>
+          <span
+            className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${theme.badge}`}
+          >
+            {theme.label}
+          </span>
+          <p className="min-w-0 flex-1 text-sm leading-relaxed text-slate-200">{parsed.body}</p>
         </div>
       </motion.article>
     );
@@ -129,7 +235,7 @@ function RecommendationCard({ text, index, source }) {
   const { question, score, risk, action } = parsed;
   return (
     <motion.article
-      className="rounded-xl border border-slate-700/60 bg-slate-950/50 p-5"
+      className={`rounded-xl border pl-5 pr-5 py-5 ${theme.border} ${theme.bg} ${theme.bar}`}
       initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.55 + index * 0.06, duration: 0.35 }}
@@ -137,6 +243,13 @@ function RecommendationCard({ text, index, source }) {
       <div className="flex gap-4">
         <span className="shrink-0 font-mono text-sm font-bold text-cyan-500/90">{String(index + 1).padStart(2, "0")}</span>
         <div className="min-w-0 flex-1 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${theme.badge}`}
+            >
+              {theme.label}
+            </span>
+          </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Control gap</p>
             <p className="mt-1 text-base font-semibold leading-snug text-white">{question}</p>
@@ -162,15 +275,34 @@ function RecommendationCard({ text, index, source }) {
   );
 }
 
-function ScoreDashboard({
-  score,
-  recommendations,
-  recommendationSource = null,
-  riskTotal = null,
-  riskBand = null,
-  riskBandMessage = null,
-  aiProviderError = null,
-}) {
+function ScoreDashboard({ score, recommendations, recommendationSource = null, aiProviderError = null }) {
+  const [severityFilter, setSeverityFilter] = useState(null);
+  const [showAllSeverities, setShowAllSeverities] = useState(false);
+
+  const sortedRecommendations = useMemo(
+    () => sortRecommendationsBySeverity(normalizeRecommendationList(recommendations)),
+    [recommendations]
+  );
+
+  const severityCounts = useMemo(() => {
+    const c = { critical: 0, high: 0, medium: 0, low: 0 };
+    sortedRecommendations.forEach((r) => {
+      if (Object.prototype.hasOwnProperty.call(c, r.severity)) c[r.severity] += 1;
+    });
+    return c;
+  }, [sortedRecommendations]);
+
+  const filteredBySeverity = useMemo(() => {
+    if (!severityFilter) return sortedRecommendations;
+    return sortedRecommendations.filter((r) => r.severity === severityFilter);
+  }, [sortedRecommendations, severityFilter]);
+
+  const visibleRecommendations = useMemo(() => {
+    if (severityFilter) return filteredBySeverity;
+    if (showAllSeverities || filteredBySeverity.length <= 5) return filteredBySeverity;
+    return filteredBySeverity.slice(0, 5);
+  }, [filteredBySeverity, severityFilter, showAllSeverities]);
+
   const tier = getPostureTier(score);
   const tiers = [
     { id: "critical", label: "Critical", sub: "< 40%", color: "rgb(248 113 113)", bg: "rgba(248,113,113,0.12)" },
@@ -192,17 +324,6 @@ function ScoreDashboard({
         <div className="relative">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400/90">Risk score dashboard</p>
           <h2 className="mt-2 font-sans text-2xl font-bold tracking-tight text-white md:text-3xl">Posture overview</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            {ASSESSMENT_META.title}. Posture score (higher is safer) from {QUESTION_ORDER.length} questions; raw risk
-            index {riskTotal != null ? Math.round(riskTotal) : "—"} / {MAX_RAW_RISK} (lower is better).
-            {riskBand ? (
-              <>
-                {" "}
-                <span className="text-slate-300">Band: {riskBand}</span>
-                {riskBandMessage ? <span className="text-slate-500"> — {riskBandMessage}</span> : null}
-              </>
-            ) : null}
-          </p>
 
           <div className="mt-8 grid grid-cols-3 gap-3 md:gap-4">
             {tiers.map((t, i) => {
@@ -291,7 +412,7 @@ function ScoreDashboard({
         </div>
       </div>
 
-      {recommendations.length > 0 ? (
+      {sortedRecommendations.length > 0 ? (
         <motion.div
           className="mt-8 rounded-2xl border border-slate-700/80 bg-slate-900/50 p-6 backdrop-blur-sm"
           initial={{ opacity: 0, y: 16 }}
@@ -332,11 +453,84 @@ function ScoreDashboard({
               </span>
             )}
           </div>
+          <p className="mt-3 text-xs text-slate-500">
+            Tap a severity to see only that level. Use Show more to expand the full list (all levels). Most urgent
+            issues appear first.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Filter:</span>
+            {(["critical", "high", "medium", "low"]).map((k) => {
+              const count = severityCounts[k];
+              const active = severityFilter === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => {
+                    setSeverityFilter((prev) => (prev === k ? null : k));
+                    setShowAllSeverities(false);
+                  }}
+                  className={`rounded-md border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors ${REC_SEVERITY_UI[k].badge} ${
+                    active ? "ring-2 ring-white/80 ring-offset-2 ring-offset-slate-900" : "opacity-90 hover:opacity-100"
+                  } ${count === 0 ? "cursor-not-allowed opacity-40 hover:opacity-40" : "cursor-pointer"}`}
+                  disabled={count === 0}
+                  title={count === 0 ? `No ${REC_SEVERITY_UI[k].label} items` : `Show only ${REC_SEVERITY_UI[k].label} (${count})`}
+                >
+                  {REC_SEVERITY_UI[k].label}
+                  <span className="ml-1 tabular-nums opacity-80">({count})</span>
+                </button>
+              );
+            })}
+            {severityFilter && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSeverityFilter(null);
+                  setShowAllSeverities(false);
+                }}
+                className="rounded-md border border-slate-500/60 bg-slate-800/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-300 hover:bg-slate-700/80"
+              >
+                Clear filter
+              </button>
+            )}
+          </div>
+          {severityFilter && (
+            <p className="mt-2 text-xs text-slate-400">
+              Showing {filteredBySeverity.length} {REC_SEVERITY_UI[severityFilter].label.toLowerCase()} recommendation
+              {filteredBySeverity.length === 1 ? "" : "s"}.
+            </p>
+          )}
           <div className="mt-5 space-y-4">
-            {recommendations.slice(0, 3).map((rec, i) => (
-              <RecommendationCard key={i} text={rec} index={i} source={recommendationSource} />
+            {visibleRecommendations.map((rec, i) => (
+              <RecommendationCard
+                key={`${rec.severity}-${i}-${rec.text.slice(0, 24)}`}
+                recommendation={rec}
+                index={i}
+                source={recommendationSource}
+              />
             ))}
           </div>
+          {!severityFilter && sortedRecommendations.length > 5 && (
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {!showAllSeverities ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAllSeverities(true)}
+                  className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-6 py-2.5 text-sm font-semibold text-cyan-200 hover:bg-cyan-500/15"
+                >
+                  Show more ({sortedRecommendations.length - 5} more)
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowAllSeverities(false)}
+                  className="rounded-xl border border-slate-600 bg-slate-800/80 px-6 py-2.5 text-sm font-semibold text-slate-200 hover:border-slate-500"
+                >
+                  Show less
+                </button>
+              )}
+            </div>
+          )}
         </motion.div>
       ) : (
         score >= 100 && (
@@ -367,6 +561,8 @@ export default function App() {
   const [domainScanLoading, setDomainScanLoading] = useState(false);
   const [domainScanError, setDomainScanError] = useState(null);
   const [domainScanResult, setDomainScanResult] = useState(null);
+  /** When true (from Report → Edit questionnaire), show a list to jump to any question. */
+  const [questionPickMode, setQuestionPickMode] = useState(false);
 
   const totalQuestions = QUESTION_ORDER.length;
   const reviewStepIndex = totalQuestions;
@@ -389,6 +585,11 @@ export default function App() {
   const answeredCount = useMemo(
     () => QUESTION_ORDER.filter((qid) => answers[qid] !== "").length,
     [answers]
+  );
+
+  const domainCheckGroups = useMemo(
+    () => buildDomainScanCheckGroups(domainScanResult?.checks, domainScanResult?.check_groups_meta),
+    [domainScanResult],
   );
 
   const currentQid = stepIndex < totalQuestions ? QUESTION_ORDER[stepIndex] : null;
@@ -475,6 +676,7 @@ export default function App() {
     setAnswers(buildEmptyAnswers());
     setStepIndex(0);
     setPhase("wizard");
+    setQuestionPickMode(false);
     setLastReport(null);
     setError(null);
     try {
@@ -514,7 +716,7 @@ export default function App() {
     setDomainScanResult(null);
     const d = domainInput.trim();
     if (!d) {
-      setDomainScanError("Enter a domain (e.g. example.com).");
+      setDomainScanError("Enter a domain or URL (e.g. example.com).");
       return;
     }
     setDomainScanLoading(true);
@@ -568,6 +770,7 @@ export default function App() {
           persistReport(data.lastReport);
         }
         setImportMessage("Import applied.");
+        setQuestionPickMode(false);
         setActiveTab("questionnaire");
       } catch {
         setImportMessage("Invalid JSON file.");
@@ -605,17 +808,14 @@ export default function App() {
 
   return (
     <div className="relative mx-auto min-h-screen max-w-6xl px-4 pb-16 pt-8 md:px-8 md:pt-12">
-      <header className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/20 to-emerald-600/10">
+      <header className="mb-8 flex flex-col items-center gap-6">
+        <div className="flex items-center justify-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/20 to-emerald-600/10">
             <span className="text-sm font-extrabold tracking-tight text-cyan-300">CR</span>
           </div>
-          <div>
-            <h1 className="font-sans text-xl font-bold tracking-tight text-white md:text-2xl">ClearRisk</h1>
-            <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Security posture platform</p>
-          </div>
+          <h1 className="font-sans text-xl font-bold tracking-tight text-white md:text-2xl">ClearRisk</h1>
         </div>
-        <nav className="flex flex-wrap gap-2">
+        <nav className="flex flex-wrap justify-center gap-2">
           {[
             ["home", "Home"],
             ["questionnaire", "Questionnaire"],
@@ -627,7 +827,10 @@ export default function App() {
               key={id}
               type="button"
               className={`${navBtn} ${activeTab === id ? navActive : navIdle}`}
-              onClick={() => setActiveTab(id)}
+              onClick={() => {
+                if (id === "questionnaire") setQuestionPickMode(false);
+                setActiveTab(id);
+              }}
             >
               {label}
             </button>
@@ -661,19 +864,19 @@ export default function App() {
             {[
               {
                 t: "Questionnaire",
-                d: "20 cyber-safety questions (A–D answers) with review before analysis.",
+                d: "Structured cyber-safety questions with a review step before analysis.",
                 tab: "questionnaire",
                 icon: "📋",
               },
               {
                 t: "Domain scan",
-                d: "DNS, mail (MX), SPF & DMARC, HTTPS/TLS, HSTS, and HTTP→HTTPS redirect checks.",
+                d: "Run lightweight DNS / email auth / certificate / header checks using public sources.",
                 tab: "domain",
                 icon: "🔍",
               },
               {
                 t: "Report",
-                d: "Posture score, R/Y/G band, and three prioritized recommendations after analysis.",
+                d: "Shows your posture score, risk band, and security recommendations after analysis.",
                 tab: "report",
                 icon: "📊",
               },
@@ -704,32 +907,91 @@ export default function App() {
 
       {activeTab === "questionnaire" && phase === "wizard" && (
         <>
-          <div className="mb-8 max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400/80">Assessment</p>
-            <h2 className="mt-2 font-sans text-3xl font-bold tracking-tight text-white md:text-4xl">Cybersecurity posture review</h2>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-400 md:text-base">
-              Step through guided questions. ClearRisk maps your answers to a posture score, risk band, and recommendations.
-            </p>
-          </div>
-
-          <div className="mb-8 max-w-2xl">
-            <div className="mb-2 flex justify-between text-xs font-medium text-slate-500">
-              <span>
-                Step {Math.min(stepIndex + 1, maxStep + 1)} of {maxStep + 1}
-              </span>
-              <span>{progressPercent}%</span>
+          {questionPickMode ? (
+            <div className="mx-auto max-w-3xl">
+              <div className="mb-8">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400/80">Assessment</p>
+                <h2 className="mt-2 font-sans text-3xl font-bold tracking-tight text-white md:text-4xl">Choose a question</h2>
+                <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-400 md:text-base">
+                  Select which question to edit. After you change an answer, use{" "}
+                  <span className="text-slate-300">Next</span> or <span className="text-slate-300">Back</span> to move
+                  through the form, or run analysis again from the review step when you are ready.
+                </p>
+              </div>
+              <ul className="max-h-[min(70vh,560px)] space-y-2 overflow-y-auto pr-1">
+                {QUESTION_ORDER.map((qid, i) => {
+                  const q = ASSESSMENT_DATA[qid];
+                  const sel = answers[qid];
+                  const opt = sel ? q.options.find((o) => o.id === sel) : null;
+                  return (
+                    <li key={qid}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStepIndex(i);
+                          setQuestionPickMode(false);
+                        }}
+                        className="flex w-full gap-4 rounded-xl border border-slate-700/80 bg-slate-900/70 p-4 text-left transition-colors hover:border-cyan-500/35 hover:bg-slate-900/90"
+                      >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-800 font-mono text-sm font-bold text-cyan-400/90">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{q.category}</p>
+                          <p className="mt-1 text-sm font-medium leading-snug text-white">{q.text}</p>
+                          <p className="mt-2 text-xs text-slate-500">
+                            Current:{" "}
+                            <span className="text-slate-400">{opt ? opt.label : "Not selected"}</span>
+                          </p>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuestionPickMode(false);
+                    setActiveTab("report");
+                  }}
+                  className="rounded-xl border border-slate-600 px-6 py-3 text-sm font-semibold text-slate-300 transition duration-200 hover:bg-slate-800/80"
+                >
+                  Back to report
+                </button>
+              </div>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
-              <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400"
-                initial={false}
-                animate={{ width: `${stepIndex >= totalQuestions ? 100 : progressPercent}%` }}
-                transition={{ duration: 0.35, ease: easeOut }}
-              />
-            </div>
-          </div>
+          ) : (
+            <>
+              <div className="mb-8 max-w-2xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400/80">Assessment</p>
+                <h2 className="mt-2 font-sans text-3xl font-bold tracking-tight text-white md:text-4xl">
+                  Cybersecurity posture review
+                </h2>
+                <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-400 md:text-base">
+                  Step through guided questions. ClearRisk maps your answers to a posture score, risk band, and recommendations.
+                </p>
+              </div>
 
-          <div className="relative min-h-[320px] max-w-2xl">
+              <div className="mb-8 max-w-2xl">
+                <div className="mb-2 flex justify-between text-xs font-medium text-slate-500">
+                  <span>
+                    Step {Math.min(stepIndex + 1, maxStep + 1)} of {maxStep + 1}
+                  </span>
+                  <span>{progressPercent}%</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400"
+                    initial={false}
+                    animate={{ width: `${stepIndex >= totalQuestions ? 100 : progressPercent}%` }}
+                    transition={{ duration: 0.35, ease: easeOut }}
+                  />
+                </div>
+              </div>
+
+              <div className="relative min-h-[320px] max-w-2xl">
             <AnimatePresence mode="wait">
               {stepIndex < totalQuestions && currentQuestion && (
                 <motion.div
@@ -779,18 +1041,34 @@ export default function App() {
                 >
                   <p className="text-xs font-semibold uppercase tracking-wider text-cyan-400/90">Review</p>
                   <h3 className="mt-2 font-sans text-xl font-bold text-white">Confirm your responses</h3>
-                  <p className="mt-1 text-sm text-slate-400">Verify selections before submitting to the analysis engine.</p>
-                  <ul className="mt-6 max-h-[min(50vh,420px)] space-y-3 overflow-y-auto pr-1">
-                    {QUESTION_ORDER.map((qid) => {
+                  <p className="mt-1 text-sm text-slate-400">
+                    Verify selections before submitting to the analysis engine. Click any question below to go back and
+                    edit that answer.
+                  </p>
+                  <ul className="mt-6 max-h-[min(50vh,420px)] space-y-2 overflow-y-auto pr-1">
+                    {QUESTION_ORDER.map((qid, i) => {
                       const q = ASSESSMENT_DATA[qid];
                       const opt = q.options.find((o) => o.id === answers[qid]);
                       return (
-                        <li
-                          key={qid}
-                          className="flex flex-col gap-1 rounded-lg border border-slate-700/50 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                        >
-                          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{q.category}</span>
-                          <span className="text-sm text-slate-200">{opt ? opt.label : "—"}</span>
+                        <li key={qid}>
+                          <button
+                            type="button"
+                            onClick={() => setStepIndex(i)}
+                            className="flex w-full gap-3 rounded-xl border border-slate-700/50 bg-slate-950/40 px-4 py-3 text-left transition-colors hover:border-cyan-500/35 hover:bg-slate-900/60 sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+                              <span className="flex shrink-0 items-center gap-2">
+                                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-800 font-mono text-xs font-bold text-cyan-400/90">
+                                  {i + 1}
+                                </span>
+                                <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{q.category}</span>
+                              </span>
+                              <span className="min-w-0 text-sm font-medium leading-snug text-white sm:line-clamp-2">{q.text}</span>
+                            </span>
+                            <span className="mt-2 shrink-0 text-sm text-slate-300 sm:mt-0 sm:max-w-[40%] sm:text-right">
+                              {opt ? opt.label : "—"}
+                            </span>
+                          </button>
                         </li>
                       );
                     })}
@@ -817,29 +1095,31 @@ export default function App() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
+              </div>
 
-          {(stepIndex < reviewStepIndex || stepIndex === reviewStepIndex) && (
-            <div className="mt-8 flex max-w-2xl flex-wrap items-center justify-between gap-4">
-              <button
-                type="button"
-                onClick={goBack}
-                disabled={stepIndex === 0}
-                className="rounded-xl border border-slate-600 px-6 py-3 text-sm font-semibold text-slate-300 transition duration-200 hover:bg-slate-800/80 disabled:cursor-not-allowed disabled:opacity-35"
-              >
-                Back
-              </button>
-              {stepIndex < reviewStepIndex && (
-                <button
-                  type="button"
-                  onClick={goNext}
-                  disabled={!canGoNext}
-                  className="rounded-xl border border-slate-600 px-6 py-3 text-sm font-semibold text-slate-300 transition duration-200 hover:bg-slate-800/80 disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  {stepIndex === totalQuestions - 1 ? "Review" : "Next"}
-                </button>
+              {(stepIndex < reviewStepIndex || stepIndex === reviewStepIndex) && (
+                <div className="mt-8 flex max-w-2xl flex-wrap items-center justify-between gap-4">
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    disabled={stepIndex === 0}
+                    className="rounded-xl border border-slate-600 px-6 py-3 text-sm font-semibold text-slate-300 transition duration-200 hover:bg-slate-800/80 disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    Back
+                  </button>
+                  {stepIndex < reviewStepIndex && (
+                    <button
+                      type="button"
+                      onClick={goNext}
+                      disabled={!canGoNext}
+                      className="rounded-xl border border-slate-600 px-6 py-3 text-sm font-semibold text-slate-300 transition duration-200 hover:bg-slate-800/80 disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      {stepIndex === totalQuestions - 1 ? "Review" : "Next"}
+                    </button>
+                  )}
+                </div>
               )}
-            </div>
+            </>
           )}
         </>
       )}
@@ -857,9 +1137,6 @@ export default function App() {
                 score={reportDisplayScore}
                 recommendations={lastReport.recommendations ?? []}
                 recommendationSource={lastReport.recommendationSource ?? null}
-                riskTotal={lastReport.riskTotal ?? null}
-                riskBand={lastReport.riskBand ?? null}
-                riskBandMessage={lastReport.riskBandMessage ?? null}
                 aiProviderError={lastReport.aiProviderError ?? null}
               />
               {lastReport.savedAt && (
@@ -870,7 +1147,10 @@ export default function App() {
               <div className="mt-8 flex flex-wrap justify-center gap-3">
                 <button
                   type="button"
-                  onClick={() => setActiveTab("questionnaire")}
+                  onClick={() => {
+                    setActiveTab("questionnaire");
+                    setQuestionPickMode(true);
+                  }}
                   className="rounded-xl border border-slate-600 bg-slate-900/80 px-6 py-3 text-sm font-semibold text-slate-200 hover:border-cyan-500/40"
                 >
                   Edit questionnaire
@@ -909,20 +1189,28 @@ export default function App() {
           <div className="rounded-2xl border border-slate-700/80 bg-slate-900/70 p-8">
             <h2 className="font-sans text-2xl font-bold text-white">Domain scan</h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-400">
-              Passive checks only: DNS (A, MX), SPF/DMARC TXT records, HTTPS/TLS reachability, HSTS, certificate horizon, and
-              whether plain HTTP redirects toward HTTPS. No intrusive port scanning.
+              Run lightweight DNS / email auth / certificate / header checks using public sources.
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-slate-500">
+              Enter a <span className="text-slate-400">domain name</span> (e.g. <span className="font-mono text-slate-400">company.com</span>), optional{" "}
+              <span className="text-slate-400">www</span>, or paste a <span className="text-slate-400">website URL</span>—we only use the hostname, not a
+              specific page. This is not a full website audit; it reads public DNS records and a single HTTPS response.
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">
+              <span className="font-semibold text-slate-400">Email authentication</span> here means SPF and DMARC DNS records: they tell other mail servers
+              which senders are allowed for your domain and what to do with messages that fail checks—reducing spoofing and improving deliverability.
             </p>
             <form className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={runDomainScan}>
               <div className="min-w-0 flex-1">
                 <label htmlFor="domain-input" className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Domain or URL
+                  Domain, subdomain, or site URL
                 </label>
                 <input
                   id="domain-input"
                   type="text"
                   value={domainInput}
                   onChange={(ev) => setDomainInput(ev.target.value)}
-                  placeholder="example.com"
+                  placeholder="example.com or https://www.example.com"
                   className="mt-2 w-full rounded-xl border border-slate-600/80 bg-slate-950/80 px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-cyan-500/50"
                   autoComplete="off"
                 />
@@ -949,10 +1237,21 @@ export default function App() {
                 </div>
                 <div className="rounded-xl border border-slate-600 bg-slate-950/60 px-4 py-2 text-center">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Surface score</p>
-                  <p className="text-3xl font-extrabold tabular-nums text-cyan-300">{domainScanResult.score}</p>
+                  <p
+                    className={`text-3xl font-extrabold tabular-nums ${domainSurfaceScoreClass(domainScanResult.score)}`}
+                  >
+                    {domainScanResult.score}
+                  </p>
                   <p className="text-[10px] text-slate-500">0–100 (higher is better)</p>
                 </div>
               </div>
+
+              {domainScanResult.surface_summary ? (
+                <div className="rounded-xl border border-slate-600/80 bg-slate-950/50 px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Summary</p>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-200">{domainScanResult.surface_summary}</p>
+                </div>
+              ) : null}
 
               {Array.isArray(domainScanResult.issues) && domainScanResult.issues.length > 0 && (
                 <div className="rounded-xl border border-amber-500/25 bg-amber-950/20 px-4 py-3">
@@ -965,19 +1264,36 @@ export default function App() {
                 </div>
               )}
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                {Array.isArray(domainScanResult.checks) &&
-                  domainScanResult.checks.map((c) => (
-                    <div
-                      key={c.id}
-                      className={`rounded-xl border px-4 py-3 text-sm ${
-                        c.ok ? "border-emerald-500/30 bg-emerald-950/20 text-emerald-100/90" : "border-slate-600 bg-slate-950/40 text-slate-300"
-                      }`}
-                    >
-                      <span className="font-mono text-xs font-bold uppercase tracking-wide text-slate-500">{c.id}</span>
-                      <p className="mt-1 break-words text-slate-200">{c.detail}</p>
+              <div className="space-y-6">
+                {domainCheckGroups.map((g) => (
+                  <div key={g.id}>
+                    <h4 className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{g.title}</h4>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {g.items.map((c) => (
+                        <div
+                          key={c.id}
+                          className={`rounded-xl border px-4 py-3 text-sm ${
+                            c.ok
+                              ? "border-emerald-500/40 bg-emerald-950/25 text-emerald-100/95"
+                              : "border-red-500/45 bg-red-950/30 text-red-100/95"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-semibold text-slate-100">{c.label || c.id}</span>
+                            <span
+                              className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                c.ok ? "bg-emerald-500/20 text-emerald-200" : "bg-red-500/20 text-red-200"
+                              }`}
+                            >
+                              {c.ok ? "Good" : "Issue"}
+                            </span>
+                          </div>
+                          <p className="mt-2 break-words text-sm opacity-90">{c.detail}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                ))}
               </div>
 
               {domainScanResult.a_records?.length > 0 && (

@@ -57,9 +57,25 @@ def scan_domain(hostname: str) -> dict[str, Any]:
     try:
         ans = dns.resolver.resolve(host, "A", lifetime=8)
         a_records = [str(r) for r in ans]
-        checks.append({"id": "dns_a", "ok": True, "detail": f"{len(a_records)} IPv4 address(es)"})
+        checks.append(
+            {
+                "id": "dns_a",
+                "group": "dns",
+                "label": "IPv4 (A records)",
+                "ok": True,
+                "detail": f"{len(a_records)} IPv4 address(es)",
+            }
+        )
     except dns.exception.DNSException as e:
-        checks.append({"id": "dns_a", "ok": False, "detail": str(e)})
+        checks.append(
+            {
+                "id": "dns_a",
+                "group": "dns",
+                "label": "IPv4 (A records)",
+                "ok": False,
+                "detail": str(e),
+            }
+        )
         issues.append("No IPv4 (A) DNS records found for this hostname.")
 
     # --- MX ---
@@ -71,6 +87,8 @@ def scan_domain(hostname: str) -> dict[str, Any]:
         checks.append(
             {
                 "id": "mx",
+                "group": "dns",
+                "label": "Mail servers (MX)",
                 "ok": ok_mx,
                 "detail": ", ".join(f"{p} {n}" for p, n in mx_records[:5]) if mx_records else "None",
             }
@@ -78,7 +96,15 @@ def scan_domain(hostname: str) -> dict[str, Any]:
         if not ok_mx:
             issues.append("No MX records — inbound email may not be configured.")
     except dns.exception.DNSException as e:
-        checks.append({"id": "mx", "ok": False, "detail": str(e)})
+        checks.append(
+            {
+                "id": "mx",
+                "group": "dns",
+                "label": "Mail servers (MX)",
+                "ok": False,
+                "detail": str(e),
+            }
+        )
         issues.append("Could not read MX records.")
 
     # --- SPF ---
@@ -87,7 +113,15 @@ def scan_domain(hostname: str) -> dict[str, Any]:
         if txt.strip().lower().startswith("v=spf1"):
             spf = txt
             break
-    checks.append({"id": "spf", "ok": spf is not None, "detail": (spf[:120] + "…") if spf and len(spf) > 120 else (spf or "No v=spf1 TXT at apex")})
+    checks.append(
+        {
+            "id": "spf",
+            "group": "email_auth",
+            "label": "SPF",
+            "ok": spf is not None,
+            "detail": (spf[:120] + "…") if spf and len(spf) > 120 else (spf or "No v=spf1 TXT at apex"),
+        }
+    )
     if not spf:
         issues.append("No SPF record (TXT starting with v=spf1).")
 
@@ -102,10 +136,13 @@ def scan_domain(hostname: str) -> dict[str, Any]:
             if m:
                 dmarc_policy = m.group(1).lower()
             break
+    dmarc_ok = dmarc_record is not None and dmarc_policy != "none"
     checks.append(
         {
             "id": "dmarc",
-            "ok": dmarc_record is not None,
+            "group": "email_auth",
+            "label": "DMARC",
+            "ok": dmarc_ok,
             "detail": f"p={dmarc_policy}" if dmarc_policy else (dmarc_record[:100] if dmarc_record else f"No DMARC at {dmarc_host}"),
         }
     )
@@ -135,16 +172,34 @@ def scan_domain(hostname: str) -> dict[str, Any]:
             final_https_url = e.geturl() or f"https://{host}/"
             hsts = e.headers.get("Strict-Transport-Security") is not None
         else:
-            checks.append({"id": "https", "ok": False, "detail": f"HTTP {e.code}: {e.reason}"})
+            checks.append(
+                {
+                    "id": "https",
+                    "group": "certificate",
+                    "label": "HTTPS",
+                    "ok": False,
+                    "detail": f"HTTP {e.code}: {e.reason}",
+                }
+            )
             issues.append("HTTPS returned a server error (5xx).")
     except (urllib.error.URLError, OSError, ssl.SSLError, TimeoutError) as e:
-        checks.append({"id": "https", "ok": False, "detail": str(e)})
+        checks.append(
+            {
+                "id": "https",
+                "group": "certificate",
+                "label": "HTTPS",
+                "ok": False,
+                "detail": str(e),
+            }
+        )
         issues.append("HTTPS site did not load successfully (certificate, TLS, or network).")
 
     if https_ok:
         checks.append(
             {
                 "id": "https",
+                "group": "certificate",
+                "label": "HTTPS",
                 "ok": True,
                 "detail": final_https_url or f"https://{host}/",
             }
@@ -152,6 +207,8 @@ def scan_domain(hostname: str) -> dict[str, Any]:
         checks.append(
             {
                 "id": "hsts",
+                "group": "header",
+                "label": "HSTS",
                 "ok": hsts,
                 "detail": "Strict-Transport-Security present" if hsts else "No HSTS header on response",
             }
@@ -181,6 +238,8 @@ def scan_domain(hostname: str) -> dict[str, Any]:
     checks.append(
         {
             "id": "tls_cert",
+            "group": "certificate",
+            "label": "TLS certificate",
             "ok": cert_days_left is None or cert_days_left >= 14,
             "detail": cert_detail,
         }
@@ -202,6 +261,8 @@ def scan_domain(hostname: str) -> dict[str, Any]:
     checks.append(
         {
             "id": "http_to_https",
+            "group": "header",
+            "label": "HTTP → HTTPS redirect",
             "ok": http_redirects_https or https_ok,
             "detail": "HTTP redirects to HTTPS" if http_redirects_https else "No HTTP→HTTPS redirect detected (or HTTP unavailable)",
         }
@@ -232,6 +293,12 @@ def scan_domain(hostname: str) -> dict[str, Any]:
     return {
         "domain": host,
         "score": score,
+        "check_groups_meta": [
+            {"id": "dns", "title": "DNS"},
+            {"id": "email_auth", "title": "Email authentication"},
+            {"id": "certificate", "title": "Certificate"},
+            {"id": "header", "title": "Headers"},
+        ],
         "a_records": a_records,
         "mx_records": [{"priority": p, "host": n} for p, n in mx_records],
         "spf": spf,

@@ -117,59 +117,103 @@ def _failed_checks(answers: dict[str, str]) -> list[dict[str, str]]:
     return failed
 
 
-def _parse_json_array_of_strings(raw: str) -> list[str]:
-    text = raw.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I)
-        text = re.sub(r"\s*```\s*$", "", text)
-
-    def _from_obj(data: Any) -> list[str]:
-        if not isinstance(data, list):
-            raise ValueError("Response is not a JSON array")
-        out: list[str] = []
-        for item in data:
-            s = str(item).strip()
-            if s:
-                out.append(s)
-        return out
-
-    try:
-        return _from_obj(json.loads(text))
-    except json.JSONDecodeError:
-        start = text.find("[")
-        end = text.rfind("]")
-        if start != -1 and end > start and end > start:
-            return _from_obj(json.loads(text[start : end + 1]))
-        raise
+class RecommendationItem(BaseModel):
+    text: str
+    severity: str  # critical | high | medium | low
 
 
-def _fallback_recommendations(failed: list[dict[str, str]]) -> list[str]:
-    ranked = sorted(failed, key=lambda x: -int(x["risk_points"]))
+def _severity_sort_key(severity: str) -> int:
+    return {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(severity, 2)
+
+
+def _risk_points_to_severity(pts: int) -> str:
+    if pts >= 20:
+        return "critical"
+    if pts >= 15:
+        return "high"
+    if pts >= 10:
+        return "medium"
+    return "low"
+
+
+def _normalize_severity_label(raw: str) -> str:
+    s = raw.strip().lower()
+    if s in ("critical", "high", "medium", "low"):
+        return s
+    if s in ("severe", "urgent", "catastrophic"):
+        return "critical"
+    if s in ("moderate", "med"):
+        return "medium"
+    if s in ("minor", "informational"):
+        return "low"
+    return "medium"
+
+
+def _fallback_item_for_failed_row(item: dict[str, str], idx: int) -> RecommendationItem:
     closers = [
         "Assign an owner and a target date to close this gap.",
         "Document the control you want, then verify it monthly.",
         "Review with your team quarterly and update your safety checklist.",
     ]
-    recs: list[str] = []
-    for idx, item in enumerate(ranked[:3]):
-        closer = closers[min(idx, len(closers) - 1)]
-        recs.append(
-            f"Priority: {item['text']} (risk points: {item['risk_points']}). "
-            f"{item['risk_context']} {closer}"
-        )
-    fillers = [
-        "Tie open items to everyday impact so fixes get priority.",
-        "Write down who is responsible for each fix and check progress weekly.",
-        "After changes, run this check again to confirm risk went down.",
-    ]
-    i = 0
-    while len(recs) < 3:
-        recs.append(fillers[i % len(fillers)])
-        i += 1
-    return recs[:3]
+    closer = closers[min(idx, len(closers) - 1)]
+    body = (
+        f"Priority: {item['text']} (risk points: {item['risk_points']}). "
+        f"{item['risk_context']} {closer}"
+    )
+    sev = _risk_points_to_severity(int(item["risk_points"]))
+    return RecommendationItem(text=body, severity=sev)
 
 
-def _gemini_three_recommendations(failed: list[dict[str, str]]) -> list[str]:
+def _parse_recommendation_json(raw: str, failed: list[dict[str, str]]) -> list[RecommendationItem]:
+    """Parse Gemini JSON: array of objects {text, severity} or legacy array of strings; pad to len(failed)."""
+    text = raw.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I)
+        text = re.sub(r"\s*```\s*$", "", text)
+    start = text.find("[")
+    end = text.rfind("]")
+    if start == -1 or end <= start:
+        raise ValueError("No JSON array in model response")
+    data = json.loads(text[start : end + 1])
+    if not isinstance(data, list):
+        raise ValueError("Response is not a JSON array")
+
+    ranked = sorted(failed, key=lambda x: -int(x["risk_points"]))
+    n = len(ranked)
+    items: list[RecommendationItem] = []
+
+    if data and isinstance(data[0], dict) and "text" in data[0]:
+        for obj in data:
+            if not isinstance(obj, dict):
+                continue
+            t = str(obj.get("text", "")).strip()
+            if not t:
+                continue
+            sev = _normalize_severity_label(str(obj.get("severity", "medium")))
+            items.append(RecommendationItem(text=t, severity=sev))
+    else:
+        for i, el in enumerate(data):
+            t = str(el).strip()
+            if not t:
+                continue
+            pts = int(ranked[i]["risk_points"]) if i < len(ranked) else 5
+            items.append(RecommendationItem(text=t, severity=_risk_points_to_severity(pts)))
+
+    while len(items) < n:
+        items.append(_fallback_item_for_failed_row(ranked[len(items)], len(items)))
+    if len(items) > n:
+        items = items[:n]
+
+    return sorted(items, key=lambda x: _severity_sort_key(x.severity))
+
+
+def _fallback_recommendation_items(failed: list[dict[str, str]]) -> list[RecommendationItem]:
+    ranked = sorted(failed, key=lambda x: -int(x["risk_points"]))
+    items = [_fallback_item_for_failed_row(item, idx) for idx, item in enumerate(ranked)]
+    return sorted(items, key=lambda x: _severity_sort_key(x.severity))
+
+
+def _gemini_recommendation_items(failed: list[dict[str, str]]) -> list[RecommendationItem]:
     import google.generativeai as genai  # noqa: PLC0415
 
     api_key = (os.environ.get("GEMINI_API_KEY") or "").strip()
@@ -187,12 +231,18 @@ def _gemini_three_recommendations(failed: list[dict[str, str]]) -> list[str]:
         )
     failed_block = "\n".join(failed_lines)
 
+    n = len(failed)
     prompt = f"""You are an expert cybersecurity coach writing for small businesses (8th-grade reading level). The user chose weaker answers on these topics:
 {failed_block}
 
-Generate exactly 3 specific, friendly, actionable recommendations as a JSON array of strings only. No markdown fences.
+There are exactly {n} gaps listed above (in the order shown). Return a JSON array of exactly {n} objects, in the SAME order as the gaps (first object = first gap in the list).
 
-Output only valid JSON (array of strings)."""
+Each object must be:
+{{"text": "clear actionable sentence", "severity": "critical" | "high" | "medium" | "low"}}
+
+Rules:
+- severity must match how urgent each gap is (use risk_points: higher points = more severe).
+- No markdown fences; output only valid JSON."""
 
     response = None
     try:
@@ -208,22 +258,21 @@ Output only valid JSON (array of strings)."""
     if not raw:
         raise ValueError("Gemini returned an empty or blocked response.")
 
-    recs = _parse_json_array_of_strings(raw)
-    if len(recs) < 3:
-        raise ValueError(f"Expected 3 recommendations, got {len(recs)}.")
-    return recs[:3]
+    return _parse_recommendation_json(raw, failed)
 
 
-def _recommendations_for_failed(failed: list[dict[str, str]]) -> tuple[list[str], str, str | None]:
+def _recommendations_for_failed(failed: list[dict[str, str]]) -> tuple[list[RecommendationItem], str, str | None]:
     """Returns (recommendations, source, provider_error). provider_error set when key exists but Gemini failed."""
     key = (os.environ.get("GEMINI_API_KEY") or "").strip()
     if key:
         try:
-            return _gemini_three_recommendations(failed), "gemini", None
+            items = _gemini_recommendation_items(failed)
+            items = sorted(items, key=lambda x: _severity_sort_key(x.severity))
+            return items, "gemini", None
         except Exception as exc:  # noqa: BLE001
             logger.warning("Gemini recommendations failed; using built-in fallback: %s", exc)
-            return _fallback_recommendations(failed), "fallback", str(exc)
-    return _fallback_recommendations(failed), "fallback", None
+            return _fallback_recommendation_items(failed), "fallback", str(exc)
+    return _fallback_recommendation_items(failed), "fallback", None
 
 
 class AnalyzeRequest(RootModel[dict[str, str]]):
@@ -243,13 +292,103 @@ class AnalyzeResponse(BaseModel):
     risk_total: float
     risk_band: str
     risk_band_message: str
-    ai_recommendations: list[str]
+    ai_recommendations: list[RecommendationItem]
     recommendation_source: str | None = None  # "gemini" | "fallback" | None when no gaps
     ai_provider_error: str | None = None  # set when key present but Gemini failed
 
 
 class DomainScanRequest(BaseModel):
     domain: str
+
+
+def _fallback_domain_surface_summary(scan: dict[str, Any]) -> str:
+    """Plain-language score explanation when Gemini is unavailable."""
+    score = int(scan.get("score", 0))
+    dom = str(scan.get("domain", "this domain"))
+    issues = scan.get("issues") or []
+    n = len(issues) if isinstance(issues, list) else 0
+    if score >= 85:
+        if n:
+            return (
+                f"The surface score for {dom} is {score} out of 100 (higher is better)—strong overall. "
+                f"There are still {n} finding(s) below worth a quick review."
+            )
+        return (
+            f"The surface score for {dom} is {score} out of 100. From public DNS, HTTPS, and mail-related checks, "
+            "things look in good shape for what we can see without logging into your systems."
+        )
+    if score >= 60:
+        return (
+            f"The surface score for {dom} is {score} out of 100—mixed. Some basics look fine, but the gaps below "
+            "can affect how reliably email is trusted or how browsers reach your site securely."
+        )
+    return (
+        f"The surface score for {dom} is {score} out of 100—several important items are missing or weak. "
+        "Improving DNS, email authentication (SPF/DMARC), HTTPS or your certificate, and security headers "
+        "would make the domain look much healthier from the outside."
+    )
+
+
+def _gemini_domain_surface_summary(scan: dict[str, Any]) -> str:
+    import google.generativeai as genai  # noqa: PLC0415
+
+    api_key = (os.environ.get("GEMINI_API_KEY") or "").strip()
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY not set")
+
+    genai.configure(api_key=api_key)
+    model_name = (os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash").strip()
+    model = genai.GenerativeModel(model_name)
+
+    lines: list[str] = []
+    for c in scan.get("checks") or []:
+        if not isinstance(c, dict):
+            continue
+        label = str(c.get("label") or c.get("id", "check"))
+        st = "pass" if c.get("ok") else "fail"
+        det = str(c.get("detail", ""))[:140]
+        lines.append(f"- {label}: {st} — {det}")
+
+    issues = scan.get("issues") or []
+    issue_lines = [f"- {i}" for i in issues[:16]] if isinstance(issues, list) else []
+    issues_block = "\n".join(issue_lines) if issue_lines else "(none listed)"
+
+    prompt = f"""You explain external domain security scan results to a small-business owner.
+
+Domain: {scan.get("domain")}
+Surface score: {scan.get("score")} out of 100 (higher is better).
+
+Check results:
+{chr(10).join(lines)}
+
+Notable issues:
+{issues_block}
+
+Write exactly 2 or 3 short sentences at about 8th-grade reading level. Plain text only—no markdown, no bullet characters, no title line. Explain what this score means in everyday language and mention DNS, email authentication (SPF/DMARC), HTTPS/certificate, or headers only if relevant to the results. Do not invent facts or numbers beyond what is given."""
+
+    response = model.generate_content(prompt)
+    raw = _extract_gemini_text(response)
+    if not raw:
+        raise ValueError("Gemini returned an empty response for domain summary.")
+    return raw.strip()
+
+
+def _enrich_domain_scan(scan: dict[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = dict(scan)
+    summary = _fallback_domain_surface_summary(scan)
+    source = "fallback"
+    key = (os.environ.get("GEMINI_API_KEY") or "").strip()
+    if key:
+        try:
+            summary = _gemini_domain_surface_summary(scan)
+            source = "gemini"
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Gemini domain surface summary failed; using fallback: %s", exc)
+            summary = _fallback_domain_surface_summary(scan)
+            source = "fallback"
+    out["surface_summary"] = summary
+    out["surface_summary_source"] = source
+    return out
 
 
 @asynccontextmanager
@@ -330,20 +469,21 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
                 ai_provider_error=None,
             )
 
-        ai_recommendations, source, provider_err = _recommendations_for_failed(failed)
-        ai_recommendations = [str(r).strip() for r in ai_recommendations if str(r).strip()]
-        if not ai_recommendations:
-            ai_recommendations = _fallback_recommendations(failed)
+        ai_items, source, provider_err = _recommendations_for_failed(failed)
+        ai_items = [r for r in ai_items if r.text.strip()]
+        if not ai_items:
+            ai_items = _fallback_recommendation_items(failed)
             source = "fallback"
             if provider_err is None and (os.environ.get("GEMINI_API_KEY") or "").strip():
                 provider_err = "Empty recommendation list after Gemini response."
+        ai_items = sorted(ai_items, key=lambda x: _severity_sort_key(x.severity))
 
         return AnalyzeResponse(
             overall_risk_score=float(posture),
             risk_total=float(risk_total),
             risk_band=band,
             risk_band_message=band_msg,
-            ai_recommendations=ai_recommendations,
+            ai_recommendations=ai_items,
             recommendation_source=source,
             ai_provider_error=provider_err,
         )
@@ -360,7 +500,7 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
 @app.post("/api/domain-scan")
 def domain_scan(body: DomainScanRequest) -> dict[str, Any]:
     try:
-        return scan_domain(body.domain)
+        return _enrich_domain_scan(scan_domain(body.domain))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as exc:  # noqa: BLE001
