@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ClearRisk | Cyber Resilience for Small Business</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary-fixed-dim": "#97cbff",
+              "on-tertiary-fixed": "#001d33",
+              "primary": "#0062a1",
+              "outline": "#707883",
+              "on-background": "#191c1e",
+              "on-secondary-container": "#3d617f",
+              "error-container": "#ffdad6",
+              "surface-bright": "#f8f9fb",
+              "surface-variant": "#e1e2e4",
+              "surface-dim": "#d9dadc",
+              "error": "#ba1a1a",
+              "on-secondary-fixed": "#001d31",
+              "primary-fixed": "#d1e4ff",
+              "on-tertiary-container": "#00304f",
+              "surface-container-high": "#e7e8ea",
+              "secondary": "#3e6280",
+              "on-secondary-fixed-variant": "#254a67",
+              "on-tertiary": "#ffffff",
+              "tertiary-fixed": "#cee5ff",
+              "secondary-container": "#b7dbfe",
+              "surface": "#f8f9fb",
+              "inverse-primary": "#9dcaff",
+              "on-primary-fixed": "#001d35",
+              "on-error-container": "#93000a",
+              "inverse-on-surface": "#f0f1f3",
+              "on-secondary": "#ffffff",
+              "secondary-fixed": "#cde5ff",
+              "surface-container": "#edeef0",
+              "surface-container-lowest": "#ffffff",
+              "tertiary": "#00639c",
+              "tertiary-container": "#389be6",
+              "surface-container-low": "#f2f4f6",
+              "on-tertiary-fixed-variant": "#004a77",
+              "background": "#f8f9fb",
+              "on-surface-variant": "#404752",
+              "on-primary-fixed-variant": "#00497b",
+              "outline-variant": "#bfc7d3",
+              "primary-fixed-dim": "#9dcaff",
+              "primary-container": "#339af0",
+              "on-primary-container": "#003053",
+              "on-primary": "#ffffff",
+              "surface-tint": "#0062a1",
+              "inverse-surface": "#2e3132",
+              "on-error": "#ffffff",
+              "on-surface": "#191c1e",
+              "secondary-fixed-dim": "#a6caed",
+              "surface-container-highest": "#e1e2e4"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .glass-header {
+            background: rgba(248, 249, 251, 0.8);
+            backdrop-filter: blur(12px);
+        }
+        .hero-gradient {
+            background: linear-gradient(135deg, #0062a1 0%, #339af0 100%);
+        }
+        .subtle-shadow {
+            box-shadow: 0 20px 40px rgba(25, 28, 30, 0.06);
+        }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface antialiased">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 glass-header border-b border-slate-200/50 dark:border-slate-800/50 shadow-sm dark:shadow-none font-['Manrope'] antialiased">
+<div class="flex justify-between items-center h-16 px-6 max-w-full mx-auto">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">ClearRisk</span>
+<div class="hidden md:flex gap-6 items-center">
+<a class="text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors" href="#">Dashboard</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors" href="#">Assessment</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden sm:flex items-center gap-2 mr-4">
+<button class="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md transition-all active:scale-95 duration-200">
+<span class="material-symbols-outlined text-slate-600" data-icon="settings">settings</span>
+</button>
+<button class="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md transition-all active:scale-95 duration-200">
+<span class="material-symbols-outlined text-slate-600" data-icon="notifications">notifications</span>
+</button>
+</div>
+<button class="bg-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:opacity-90 active:scale-95 transition-all">Export to PDF</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/30">
+<img alt="User Profile Avatar" data-alt="professional headshot of a business executive in a clean studio setting with soft lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA19sF8lAhnr75Bn2UZ1KapUwddlniXJHNhpCZGfNw0kPJbpfqsqfj9VYNaReBcbp-mO1qNujajOMoblWu0W_wjsKIVE1kb7k5J4SDltvuDm8fsHJbeOQFAFFoMaolhW5hz-gbJxNXsR4BKaUHfuzdnUdwFZFNdWItyFP3-D-HIc4qTnyuhO99LnLSqkSowCtx1V3PL0UM1rNxVaMsofwOqEAnAJ7gY5RXShomHGk9hWdxW40iAAhheADA4Tf7Mret_mhwWUyF1hZu5"/>
+</div>
+</div>
+</div>
+</nav>
+<main class="pt-16">
+<!-- Hero Section -->
+<section class="relative overflow-hidden bg-surface-container-low py-24 md:py-32">
+<div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+<div class="z-10">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold tracking-wider uppercase mb-6">
+<span class="material-symbols-outlined text-sm" data-icon="security">security</span>
+                        Enterprise-Grade Security
+                    </div>
+<h1 class="font-headline text-5xl md:text-6xl font-extrabold text-on-background leading-tight mb-6">
+                        Understand your cyber risk in 3 minutes, <span class="text-primary">without the jargon.</span>
+</h1>
+<p class="text-lg text-on-surface-variant max-w-xl mb-10 leading-relaxed">
+                        Cyber resilience shouldn't be a luxury. ClearRisk provides small businesses with an architectural-grade assessment that uncovers vulnerabilities and provides a clear action plan.
+                    </p>
+<div class="flex flex-col sm:flex-row gap-4">
+<button class="hero-gradient text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all active:scale-95">
+                            Start Assessment
+                        </button>
+<button class="flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold text-primary hover:bg-primary-fixed/30 transition-all active:scale-95">
+<span class="material-symbols-outlined" data-icon="play_circle">play_circle</span>
+                            See how it works
+                        </button>
+</div>
+<!-- Social Proof -->
+<div class="mt-12 pt-12 border-t border-outline-variant/15">
+<p class="text-sm font-label font-semibold text-outline mb-6">TRUSTED BY 2,000+ SMALL BUSINESSES WORLDWIDE</p>
+<div class="flex flex-wrap gap-8 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+<img alt="Client Logo" class="h-6" data-alt="minimalist corporate logo for a technology company with geometric shapes" src="https://lh3.googleusercontent.com/aida-public/AB6AXuARmdzpaIHynuwldamvivJ5KEEUZwxMlQnzgnQdoDl1INa4DYewhU-vYwMCKMrP-1KP_9lH9hDnlZYfHWoswACEnOANaczOk17umQ6HT9NA0l1Omq2hBnUDt9B5BpmhBYV447vCHijQiACSCY3m2fQ_F4vUs34bJLLSwNX48nxai2Wgd5UUJ1Bu7J-aYidufyrerhLylP1P8Iwx0bkJSCmIRVEKGjs_JoFqKkh7v05QegrKE6ihFDirmoyCsraXp43RaDSII0Hen3yu"/>
+<img alt="Client Logo" class="h-6" data-alt="clean vector logo for a professional services firm with bold sans-serif typography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAedyrSoZlsKVOyDx0e7Cb9DJtQrdH1oLfMms5OctYccFMWW96PpJu0x5RNaYPlyaY9dKwY0FWI1X8RYSJwzqOS21hGda89o43Ov6qMdo-j8ZxIPbUTyslUiqVH4xoFhs8SeIJOMjdbeUNelERKIl14enV0yB5FB7JG2S-h9H7PZdvB2huLcIYvdiLVjVeImm1VWOL2-ON0JJ-rvIzDIqf33Vq0jymRIHLQapsMZVcTpzYe3bSm4V3_hZAS9Ak3Pe3_qum5h5klEHDa"/>
+<img alt="Client Logo" class="h-6" data-alt="modern abstract emblem for a financial institution in a single solid color" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2ioo27FcUSd1rBcYwPOgufaH_v32JY8eA9CDwaXvy3XY2VqNTsm7Bf_RFOYxpWKmlxLZqeWOfppj2jPaB2yQByFHY71TZVqx2h-kexLL1t8SvH7SuKAkNz6a0VJtiDcTQtvXcLv7Tcd1sfY9xd8t_nO3FL8HaDi1XVYeZ4Ts2QbKendzdBbdBSicZvObITkB-KZ8ycr97_AztVS2R7Ijg_jXaa7y3i7vUF91v2dfZSp30lQLtHx4cEAI8Xa9MONxV_LLH4uQhfJ82"/>
+<img alt="Client Logo" class="h-6" data-alt="sleek stylized brand mark for a modern logistics company with clean lines" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_oAzYUGQS8fX6s2l79GlafSJeLIYXWg52j-CtHQmogTo4NLUFzNO7WybSK4jv-WkjQoEf-PEl3savYTI5Yh_oDCQtQcvJfQ8VCEj1CU79njZWNKVAoYdDGozaa_6fbKa5eU_krpBXv3JzP1YWHDcVR1pnbnrqa6B_BbPW91VkNbrL1xdJAx_P7dXLSd45JFQvJN8tynDrdj98MFyE0GwmO4AiXlYGXYbDWwIpSKpZYDRqmobkHe4skb84ebj-wf--T8j08eD1bCTe"/>
+</div>
+</div>
+</div>
+<div class="relative lg:h-[600px] flex items-center justify-center">
+<div class="absolute inset-0 bg-primary/5 rounded-full blur-3xl"></div>
+<div class="relative bg-surface-container-lowest subtle-shadow p-8 rounded-[2rem] border border-outline-variant/10">
+<img alt="Cyber Security Visualization" class="rounded-xl w-full h-auto object-cover" data-alt="abstract close up of high-tech digital server interface with glowing blue lines and data points in a dark professional environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8CrN55Z4rdQ3Q4-5tGUMCBhesxKyzrI7GJchzmefLk45Ajz3iU-U_Y-IAMD-ySHlT5U3tg--zwtzp_AxUiLM_I4xJWjNvjrKI70-dnbAuqdM4WvlaR9L_qGjUGzGHdZrGLhAH3F24tTUXcGpjZk6MqR6gSTaEj1tJHIhQ074GXeaqVwcmXaU8EVVRCI-sLM54sQPD0UlGa2ubA_rR1EenSKlfFr15zr45KiZm_ScKp0nOnWO4gWc4USTo2zhRKKE99-tWxD8Kgs46"/>
+<div class="absolute -bottom-6 -left-6 bg-white p-6 rounded-2xl subtle-shadow border border-outline-variant/10 flex items-center gap-4 max-w-xs">
+<div class="w-12 h-12 bg-success/10 rounded-full flex items-center justify-center bg-secondary-container">
+<span class="material-symbols-outlined text-primary" data-icon="verified_user">verified_user</span>
+</div>
+<div>
+<p class="text-xs font-bold text-outline uppercase tracking-wider">Risk Score</p>
+<p class="text-lg font-bold text-on-surface">92/100 Secured</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Value Proposition Section -->
+<section class="py-24 bg-surface">
+<div class="max-w-7xl mx-auto px-6 text-center mb-16">
+<h2 class="font-headline text-3xl md:text-4xl font-extrabold mb-4">Why Cyber Resilience Matters</h2>
+<div class="w-16 h-1 bg-primary mx-auto rounded-full"></div>
+</div>
+<div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Card 1 -->
+<div class="bg-surface-container-low p-10 rounded-[2rem] hover:translate-y-[-8px] transition-transform duration-300">
+<div class="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-white text-3xl" data-icon="shield_lock">shield_lock</span>
+</div>
+<h3 class="font-headline text-xl font-bold mb-4">Architectural Integrity</h3>
+<p class="text-on-surface-variant leading-relaxed">
+                        We analyze your business infrastructure with the precision of a structural engineer, identifying weak points before they collapse.
+                    </p>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-low p-10 rounded-[2rem] hover:translate-y-[-8px] transition-transform duration-300">
+<div class="w-14 h-14 bg-tertiary-container rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-tertiary/20">
+<span class="material-symbols-outlined text-white text-3xl" data-icon="visibility">visibility</span>
+</div>
+<h3 class="font-headline text-xl font-bold mb-4">Radical Clarity</h3>
+<p class="text-on-surface-variant leading-relaxed">
+                        No complex terminology. Just clear, actionable insights that business owners can understand and implement immediately.
+                    </p>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-low p-10 rounded-[2rem] hover:translate-y-[-8px] transition-transform duration-300">
+<div class="w-14 h-14 bg-secondary rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-secondary/20">
+<span class="material-symbols-outlined text-white text-3xl" data-icon="monitoring">monitoring</span>
+</div>
+<h3 class="font-headline text-xl font-bold mb-4">Continuous Vigilance</h3>
+<p class="text-on-surface-variant leading-relaxed">
+                        The threat landscape evolves every hour. Our platform provides a living action plan that grows with your business security needs.
+                    </p>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="py-20 px-6">
+<div class="max-w-5xl mx-auto bg-on-background rounded-[3rem] p-12 md:p-20 text-center relative overflow-hidden">
+<div class="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2"></div>
+<div class="absolute bottom-0 left-0 w-64 h-64 bg-tertiary-container/10 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2"></div>
+<h2 class="font-headline text-3xl md:text-5xl font-extrabold text-white mb-8 relative z-10">
+                    Ready to build your digital fortress?
+                </h2>
+<p class="text-primary-fixed text-lg mb-12 max-w-2xl mx-auto relative z-10">
+                    Take the first step toward complete cyber resilience. Our automated assessment is free for your first business profile.
+                </p>
+<div class="relative z-10">
+<button class="bg-white text-primary px-10 py-5 rounded-xl font-bold text-xl hover:bg-primary-fixed transition-all active:scale-95">
+                        Start Free Assessment
+                    </button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full py-8 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 font-['Manrope'] text-xs tracking-wide">
+<div class="flex flex-col md:flex-row justify-between items-center px-8 max-w-7xl mx-auto gap-4">
+<span class="text-slate-500 dark:text-slate-400">© 2024 ClearRisk Inc.</span>
+<div class="flex gap-8">
+<a class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors" href="#">Privacy Policy</a>
+<a class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors" href="#">Terms of Service</a>
+<a class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors" href="#">Security Disclosure</a>
+</div>
+</div>
+</footer>
+</body></html>

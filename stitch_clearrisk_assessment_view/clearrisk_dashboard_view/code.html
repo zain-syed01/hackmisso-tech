@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ClearRisk | Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "background": "#faf8ff",
+            "primary-container": "#2170e4",
+            "outline-variant": "#c2c6d6",
+            "on-secondary": "#ffffff",
+            "on-surface-variant": "#424754",
+            "on-secondary-container": "#405682",
+            "primary": "#0058be",
+            "on-primary-container": "#fefcff",
+            "surface-dim": "#d2d9f4",
+            "on-tertiary-fixed-variant": "#723600",
+            "on-primary-fixed": "#001a42",
+            "on-primary-fixed-variant": "#004395",
+            "inverse-surface": "#283044",
+            "secondary-fixed": "#d8e2ff",
+            "on-secondary-fixed": "#001a42",
+            "primary-fixed-dim": "#adc6ff",
+            "tertiary": "#924700",
+            "surface-container-highest": "#dae2fd",
+            "on-primary": "#ffffff",
+            "surface-variant": "#dae2fd",
+            "tertiary-fixed-dim": "#ffb786",
+            "error-container": "#ffdad6",
+            "outline": "#727785",
+            "on-secondary-fixed-variant": "#304671",
+            "inverse-on-surface": "#eef0ff",
+            "on-error-container": "#93000a",
+            "secondary-fixed-dim": "#b1c6f9",
+            "on-tertiary-fixed": "#311400",
+            "surface-bright": "#faf8ff",
+            "inverse-primary": "#adc6ff",
+            "on-tertiary": "#ffffff",
+            "surface-container-lowest": "#ffffff",
+            "on-background": "#131b2e",
+            "surface-container-low": "#f2f3ff",
+            "error": "#ba1a1a",
+            "surface-container": "#eaedff",
+            "secondary-container": "#b6ccff",
+            "surface-container-high": "#e2e7ff",
+            "secondary": "#495e8a",
+            "surface": "#faf8ff",
+            "on-surface": "#131b2e",
+            "tertiary-container": "#b75b00",
+            "on-tertiary-container": "#fffbff",
+            "primary-fixed": "#d8e2ff",
+            "on-error": "#ffffff",
+            "tertiary-fixed": "#ffdcc6",
+            "surface-tint": "#005ac2"
+          },
+          fontFamily: {
+            "headline": ["Manrope"],
+            "body": ["Inter"],
+            "label": ["Inter"]
+          },
+          borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle;
+    }
+    .glass-nav {
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body antialiased flex min-h-screen">
+<!-- SideNavBar Anchor -->
+<aside class="h-screen w-64 hidden lg:flex flex-col sticky top-0 bg-slate-50 border-r border-slate-100/50">
+<div class="flex flex-col p-6 space-y-8 h-full">
+<div class="flex items-center space-x-3">
+<div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined" data-icon="shield">shield</span>
+</div>
+<div>
+<h1 class="font-black text-xl text-slate-900 tracking-tighter">ClearRisk</h1>
+<p class="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Cyber Resilience</p>
+</div>
+</div>
+<nav class="flex-1 space-y-2">
+<a class="flex items-center space-x-3 bg-blue-50 text-blue-700 rounded-lg px-4 py-3 font-medium transition-all active:translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Overview</span>
+</a>
+<a class="flex items-center space-x-3 text-slate-500 hover:bg-slate-100 rounded-lg px-4 py-3 font-medium transition-all active:translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="security">security</span>
+<span>Risk Factors</span>
+</a>
+<a class="flex items-center space-x-3 text-slate-500 hover:bg-slate-100 rounded-lg px-4 py-3 font-medium transition-all active:translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="list_alt">list_alt</span>
+<span>Action Plan</span>
+</a>
+<a class="flex items-center space-x-3 text-slate-500 hover:bg-slate-100 rounded-lg px-4 py-3 font-medium transition-all active:translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span>History</span>
+</a>
+</nav>
+<button class="w-full py-3 px-4 bg-primary text-white rounded-xl font-semibold shadow-md hover:bg-primary-container transition-all active:scale-95 flex items-center justify-center space-x-2">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+<span>New Assessment</span>
+</button>
+<div class="pt-6 border-t border-slate-200">
+<a class="flex items-center space-x-3 text-slate-500 hover:text-slate-700 transition-colors py-2" href="#">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+<span class="text-sm font-medium">Help Center</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+<!-- TopNavBar Anchor -->
+<header class="fixed top-0 right-0 left-0 lg:left-64 z-50 bg-white/80 backdrop-blur-md shadow-sm">
+<div class="flex justify-between items-center h-16 px-6 lg:px-12">
+<div class="flex items-center space-x-8">
+<h2 class="text-xl font-bold tracking-tight text-slate-900 lg:hidden">ClearRisk</h2>
+<nav class="hidden md:flex space-x-6">
+<a class="text-slate-600 font-medium hover:text-blue-500 transition-colors" href="#">Assessment</a>
+<a class="text-blue-600 border-b-2 border-blue-600 pb-1 font-semibold" href="#">Dashboard</a>
+<a class="text-slate-600 font-medium hover:text-blue-500 transition-colors" href="#">Resources</a>
+<a class="text-slate-600 font-medium hover:text-blue-500 transition-colors" href="#">Support</a>
+</nav>
+</div>
+<div class="flex items-center space-x-4">
+<button class="hidden sm:flex items-center space-x-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold text-sm transition-all active:scale-95">
+<span class="material-symbols-outlined text-lg" data-icon="picture_as_pdf">picture_as_pdf</span>
+<span>Export to PDF</span>
+</button>
+<div class="flex items-center space-x-2">
+<button class="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="h-8 w-8 rounded-full bg-slate-200 overflow-hidden ml-2 ring-2 ring-white">
+<img alt="User Profile Avatar" data-alt="portrait of a professional male security analyst in a clean corporate environment with neutral lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIJ9TChm8rbX4_tlFAXTaw76DakgopmVPfZ-afXkMi4pzpvfa5tsss3UTE6N30CptaLiTbpIVUR_q4wssO_1bhclvp7S9QP1mXT0oKJU80TG7D7ShFHqahCp7Bphnxa00niRaLnw1Kb2PjPibFUeVcAErBpz-4A29RG8ar0N-oq3Teym4TbBx_Vqo7OBxPiwU0M_bXkw_sl7Ue-D3GdaU9T9V-dOMHVw-Nzib-8TQddlhXRzLm3CzP_PTeV5ABMy0rn0tXGw7aZbfm"/>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- Scrollable Content Canvas -->
+<div class="mt-16 p-6 lg:p-12 max-w-7xl mx-auto w-full space-y-10 pb-20">
+<!-- Hero Section: Overall Score -->
+<section class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+<div class="lg:col-span-5 flex flex-col items-center lg:items-start text-center lg:text-left">
+<h3 class="font-headline text-sm font-extrabold uppercase tracking-[0.15em] text-slate-400 mb-2">Resilience Overview</h3>
+<h2 class="font-headline text-4xl lg:text-5xl font-black text-on-background tracking-tight leading-tight">Overall Cyber Risk Score</h2>
+<p class="mt-4 text-secondary text-lg max-w-md">Your security posture is currently moderate. Immediate actions are recommended to secure critical data assets.</p>
+<div class="mt-8 flex flex-wrap gap-4 justify-center lg:justify-start">
+<button class="px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+              Retake Assessment
+            </button>
+<button class="px-6 py-3 bg-surface-container-lowest text-primary font-bold rounded-xl ring-1 ring-outline-variant/20 hover:bg-surface-container-low transition-all">
+              View Detailed Report
+            </button>
+</div>
+</div>
+<div class="lg:col-span-7 flex justify-center">
+<!-- Hero Metric Circle -->
+<div class="relative w-72 h-72 lg:w-80 lg:h-80 flex items-center justify-center">
+<!-- Background Glow -->
+<div class="absolute inset-0 bg-tertiary/10 blur-[80px] rounded-full"></div>
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-surface-container-highest" cx="50%" cy="50%" fill="transparent" r="45%" stroke="currentColor" stroke-width="12"></circle>
+<circle class="text-tertiary drop-shadow-[0_0_8px_rgba(146,71,0,0.4)]" cx="50%" cy="50%" fill="transparent" r="45%" stroke="currentColor" stroke-dasharray="283" stroke-dashoffset="99" stroke-linecap="round" stroke-width="12"></circle>
+</svg>
+<div class="absolute flex flex-col items-center justify-center bg-surface-container-lowest w-60 h-60 rounded-full shadow-2xl shadow-slate-200">
+<span class="font-headline text-7xl font-black text-on-background tracking-tighter">65</span>
+<span class="font-label text-xs font-black uppercase tracking-widest text-slate-400">out of 100</span>
+<div class="mt-4 px-4 py-1.5 bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-full text-xs font-black flex items-center space-x-1">
+<span class="material-symbols-outlined text-sm" data-icon="warning">warning</span>
+<span>MODERATE RISK</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Risk Breakdown: Progress Bars -->
+<section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="bg-surface-container-low p-8 rounded-[2rem] space-y-8">
+<div class="flex justify-between items-end">
+<div>
+<h4 class="font-headline text-xl font-bold text-on-background">Domain Analysis</h4>
+<p class="text-sm text-secondary">Breakdown of specific security sectors</p>
+</div>
+<span class="material-symbols-outlined text-slate-300 text-3xl" data-icon="query_stats">query_stats</span>
+</div>
+<div class="space-y-6">
+<!-- Access Control -->
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-semibold">
+<span class="text-on-surface-variant">Access Control</span>
+<span class="text-emerald-600">80%</span>
+</div>
+<div class="h-3 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.3)]" style="width: 80%"></div>
+</div>
+</div>
+<!-- Data Protection -->
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-semibold">
+<span class="text-on-surface-variant">Data Protection</span>
+<span class="text-error">40%</span>
+</div>
+<div class="h-3 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-error rounded-full shadow-[0_0_10px_rgba(186,26,26,0.3)]" style="width: 40%"></div>
+</div>
+</div>
+<!-- Incident Response -->
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-semibold">
+<span class="text-on-surface-variant">Incident Response</span>
+<span class="text-tertiary">60%</span>
+</div>
+<div class="h-3 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-tertiary rounded-full shadow-[0_0_10px_rgba(146,71,0,0.3)]" style="width: 60%"></div>
+</div>
+</div>
+<!-- Training -->
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-semibold">
+<span class="text-on-surface-variant">Training</span>
+<span class="text-tertiary">50%</span>
+</div>
+<div class="h-3 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-tertiary rounded-full shadow-[0_0_10px_rgba(146,71,0,0.3)]" style="width: 50%"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="relative rounded-[2rem] overflow-hidden group">
+<img alt="Cyber Security Visual" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="abstract close-up of a blue glowing microchip and circuit board with shallow depth of field representing high-tech security" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCBLxCGlSWTDPMj8tYBUW0A7gP7p3u9p3hkeYU4LAouwqgw7TOlXCLYEnPwzfNTL3yVLC5w9kMt6-mmHqRb65sdhdutkDjZBLvw1G_dp7biht5ji_eisK8UN7pqz6gm_bB5bKFUnSAhh2-1MbZZCE5tiH9z-FWnb2Y46oDNzJazZJpePgZQtVaZxk8QNKz7g6d3Iw6kbsafzfm2Z_v7IFOY_-oJutuKRyBlgL1UWS8bv-1_0vqlXxQQD2OcGtRO0YIDtMG678tbDEaA"/>
+<div class="absolute inset-0 bg-gradient-to-t from-on-background via-on-background/20 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-8 text-white">
+<span class="inline-block px-3 py-1 bg-primary text-[10px] font-black tracking-widest uppercase rounded-full mb-3">Live Intelligence</span>
+<h4 class="text-2xl font-bold leading-tight">Protect your digital perimeter with automated monitoring.</h4>
+<p class="mt-2 text-white/70 text-sm">ClearRisk AI identifies threats before they become breaches.</p>
+</div>
+</div>
+</section>
+<!-- AI Prioritized Action Plan -->
+<section class="space-y-6">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div>
+<h3 class="font-headline text-3xl font-black text-on-background tracking-tight">AI Prioritized Action Plan</h3>
+<p class="text-secondary mt-1">High-impact steps to improve your score immediately.</p>
+</div>
+<div class="flex items-center space-x-2 text-primary font-bold text-sm bg-blue-50 px-4 py-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="auto_awesome">auto_awesome</span>
+<span>Optimized by Sentinel AI</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Action Card 1 -->
+<div class="bg-surface-container-lowest p-8 rounded-[2.5rem] flex flex-col justify-between shadow-sm hover:shadow-xl transition-all duration-300 group">
+<div class="space-y-6">
+<div class="flex justify-between items-start">
+<div class="p-4 bg-error-container text-error rounded-2xl group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-2xl" data-icon="backup" style="font-variation-settings: 'FILL' 1;">backup</span>
+</div>
+<span class="px-4 py-1.5 bg-surface-variant text-on-surface-variant rounded-full text-[10px] font-black uppercase tracking-wider">Difficulty: Easy</span>
+</div>
+<div class="space-y-3">
+<h5 class="text-2xl font-bold text-on-background tracking-tight">Enable Automated Backups</h5>
+<p class="text-on-surface-variant leading-relaxed font-medium">Your laptops aren't backed up. If a device fails or is stolen today, your business data is gone forever.</p>
+</div>
+</div>
+<div class="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
+<a class="text-primary font-bold flex items-center space-x-1 hover:space-x-2 transition-all" href="#">
+<span>Configure now</span>
+<span class="material-symbols-outlined text-lg" data-icon="arrow_forward">arrow_forward</span>
+</a>
+<span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Impact: Critical</span>
+</div>
+</div>
+<!-- Action Card 2 -->
+<div class="bg-surface-container-lowest p-8 rounded-[2.5rem] flex flex-col justify-between shadow-sm hover:shadow-xl transition-all duration-300 group">
+<div class="space-y-6">
+<div class="flex justify-between items-start">
+<div class="p-4 bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-2xl" data-icon="emergency_home" style="font-variation-settings: 'FILL' 1;">emergency_home</span>
+</div>
+<span class="px-4 py-1.5 bg-surface-variant text-on-surface-variant rounded-full text-[10px] font-black uppercase tracking-wider">Difficulty: Medium</span>
+</div>
+<div class="space-y-3">
+<h5 class="text-2xl font-bold text-on-background tracking-tight">Create an Incident Response Plan</h5>
+<p class="text-on-surface-variant leading-relaxed font-medium">You're missing a written plan. When a hack happens, seconds count—you need a clear list of who to call and what to do first.</p>
+</div>
+</div>
+<div class="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
+<a class="text-primary font-bold flex items-center space-x-1 hover:space-x-2 transition-all" href="#">
+<span>Start template</span>
+<span class="material-symbols-outlined text-lg" data-icon="arrow_forward">arrow_forward</span>
+</a>
+<span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Impact: High</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Security Status Bar -->
+<div class="bg-on-background text-white p-6 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
+<div class="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl -mr-32 -mt-32"></div>
+<div class="flex items-center space-x-6 relative z-10">
+<div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center animate-pulse">
+<span class="material-symbols-outlined text-emerald-400" data-icon="verified_user" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+</div>
+<div>
+<h6 class="font-bold">Real-time Sentinel Active</h6>
+<p class="text-white/60 text-sm">Last scan completed 14 minutes ago. No active intrusions detected.</p>
+</div>
+</div>
+<button class="px-6 py-2 bg-white text-on-background font-bold rounded-xl text-sm hover:bg-slate-100 transition-colors relative z-10">
+          Scan Now
+        </button>
+</div>
+</div>
+<!-- Footer Anchor -->
+<footer class="w-full py-8 mt-auto border-t border-slate-100 bg-slate-50">
+<div class="flex flex-col md:flex-row justify-between items-center px-8 lg:px-12 max-w-7xl mx-auto space-y-4 md:space-y-0">
+<p class="font-body text-xs text-slate-500">© 2024 ClearRisk Security. All rights reserved.</p>
+<div class="flex space-x-6">
+<a class="font-body text-xs text-slate-500 hover:text-slate-700 transition-colors" href="#">Privacy Policy</a>
+<a class="font-body text-xs text-slate-500 hover:text-slate-700 transition-colors" href="#">Terms of Service</a>
+<a class="font-body text-xs text-slate-500 hover:text-slate-700 transition-colors" href="#">Security Disclosure</a>
+</div>
+</div>
+</footer>
+</main>
+<!-- Mobile Navigation Bottom Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-100 flex md:hidden justify-around items-center h-16 px-4 z-50">
+<a class="flex flex-col items-center space-y-1 text-blue-600" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="text-[10px] font-bold">Overview</span>
+</a>
+<a class="flex flex-col items-center space-y-1 text-slate-400" href="#">
+<span class="material-symbols-outlined" data-icon="security">security</span>
+<span class="text-[10px] font-bold">Risk</span>
+</a>
+<a class="flex flex-col items-center space-y-1 text-slate-400" href="#">
+<span class="material-symbols-outlined" data-icon="list_alt">list_alt</span>
+<span class="text-[10px] font-bold">Actions</span>
+</a>
+<a class="flex flex-col items-center space-y-1 text-slate-400" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="text-[10px] font-bold">History</span>
+</a>
+</nav>
+</body></html>

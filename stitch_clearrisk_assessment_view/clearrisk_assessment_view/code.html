@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ClearRisk - Cyber Resilience Assessment</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "background": "#faf8ff",
+              "primary-container": "#2170e4",
+              "outline-variant": "#c2c6d6",
+              "on-secondary": "#ffffff",
+              "on-surface-variant": "#424754",
+              "on-secondary-container": "#405682",
+              "primary": "#0058be",
+              "on-primary-container": "#fefcff",
+              "surface-dim": "#d2d9f4",
+              "on-tertiary-fixed-variant": "#723600",
+              "on-primary-fixed": "#001a42",
+              "on-primary-fixed-variant": "#004395",
+              "inverse-surface": "#283044",
+              "secondary-fixed": "#d8e2ff",
+              "on-secondary-fixed": "#001a42",
+              "primary-fixed-dim": "#adc6ff",
+              "tertiary": "#924700",
+              "surface-container-highest": "#dae2fd",
+              "on-primary": "#ffffff",
+              "surface-variant": "#dae2fd",
+              "tertiary-fixed-dim": "#ffb786",
+              "error-container": "#ffdad6",
+              "outline": "#727785",
+              "on-secondary-fixed-variant": "#304671",
+              "inverse-on-surface": "#eef0ff",
+              "on-error-container": "#93000a",
+              "secondary-fixed-dim": "#b1c6f9",
+              "on-tertiary-fixed": "#311400",
+              "surface-bright": "#faf8ff",
+              "inverse-primary": "#adc6ff",
+              "on-tertiary": "#ffffff",
+              "surface-container-lowest": "#ffffff",
+              "on-background": "#131b2e",
+              "surface-container-low": "#f2f3ff",
+              "error": "#ba1a1a",
+              "surface-container": "#eaedff",
+              "secondary-container": "#b6ccff",
+              "surface-container-high": "#e2e7ff",
+              "secondary": "#495e8a",
+              "surface": "#faf8ff",
+              "on-surface": "#131b2e",
+              "tertiary-container": "#b75b00",
+              "on-tertiary-container": "#fffbff",
+              "primary-fixed": "#d8e2ff",
+              "on-error": "#ffffff",
+              "tertiary-fixed": "#ffdcc6",
+              "surface-tint": "#005ac2"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-header {
+        background: rgba(250, 248, 255, 0.8);
+        backdrop-filter: blur(20px);
+      }
+    </style>
+</head>
+<body class="bg-background font-body text-on-surface antialiased">
+<div class="flex min-h-screen">
+<!-- SideNavBar -->
+<aside class="h-screen w-64 hidden lg:flex flex-col sticky top-0 bg-slate-50 dark:bg-slate-950 font-['Manrope'] text-sm font-medium flex flex-col p-6 space-y-8 no-border">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-white" data-icon="security" style="font-variation-settings: 'FILL' 1;">security</span>
+</div>
+<div>
+<h1 class="font-black text-xl text-slate-900 dark:text-white leading-tight">ClearRisk</h1>
+<p class="text-[10px] uppercase tracking-widest text-secondary font-bold">Cyber Resilience</p>
+</div>
+</div>
+<nav class="flex-1 space-y-2">
+<!-- Overview: Inactive -->
+<a class="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg px-4 py-3 flex items-center gap-3 transition-all active:translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Overview</span>
+</a>
+<!-- Risk Factors: Active -->
+<a class="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg px-4 py-3 flex items-center gap-3 transition-all active:translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="security" style="font-variation-settings: 'FILL' 1;">security</span>
+<span>Risk Factors</span>
+</a>
+<a class="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg px-4 py-3 flex items-center gap-3 transition-all active:translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="list_alt">list_alt</span>
+<span>Action Plan</span>
+</a>
+<a class="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg px-4 py-3 flex items-center gap-3 transition-all active:translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span>History</span>
+</a>
+</nav>
+<div class="pt-6 border-t border-outline-variant/20">
+<button class="w-full bg-primary text-white font-bold py-3 rounded-xl shadow-md shadow-primary/10 hover:shadow-lg transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+                    New Assessment
+                </button>
+<a class="mt-4 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg px-4 py-3 flex items-center gap-3 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+<span>Help Center</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col min-w-0 bg-background">
+<!-- Top Navigation / Progress Shell -->
+<header class="glass-header sticky top-0 z-30 px-6 lg:px-12 h-20 flex items-center justify-between border-b border-outline-variant/10">
+<div class="flex items-center gap-4">
+<div class="hidden md:flex flex-col">
+<span class="text-[10px] font-bold tracking-[0.1em] text-secondary uppercase">Current Module</span>
+<span class="font-headline font-extrabold text-on-background text-lg">Access Control</span>
+</div>
+</div>
+<div class="flex-1 max-w-md mx-8">
+<div class="flex justify-between items-end mb-2">
+<span class="text-xs font-bold text-primary">Progress: 25%</span>
+<span class="text-[10px] font-medium text-on-surface-variant">Step 1 of 4</span>
+</div>
+<div class="w-full h-2.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary-container w-1/4 rounded-full" style="box-shadow: 0 0 12px rgba(33, 112, 228, 0.3);"></div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-container/20">
+<img class="w-full h-full object-cover" data-alt="Professional headshot of a cybersecurity analyst in a minimalist modern office setting with soft natural lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBq9etwqwDuh1-Vs0DuXYaNA2oTsxqgBAR9J8CmngKod43ENJn0R_4sWsyYQ0cX4UIw3XvJjwYZD91vCn6MQzfb597HrV81vfChk7V-xBXrhevff0v16im7MNZpOtlKzy6qVCZsTk2BW_pXsqw3tNO3cxELNuKlIKRuZmbQ9j-h7E5y6wSKTwsTcvfj0mHsLoSx6BYkSR9HDuzvcs3mt2IEpLZITJPW9-3dgtRjoe0uOlpAelIUiDoSC-cyOXYRMZJ_oz36G87tBWTy"/>
+</div>
+</div>
+</header>
+<div class="flex-1 flex flex-col items-center justify-center p-6 lg:p-12">
+<!-- Questionnaire Card -->
+<div class="w-full max-w-4xl space-y-12">
+<!-- Question Heading -->
+<div class="text-center space-y-4">
+<div class="inline-flex items-center justify-center w-16 h-16 bg-surface-container-low rounded-2xl mb-2">
+<span class="material-symbols-outlined text-primary text-4xl" data-icon="shield_person">shield_person</span>
+</div>
+<h2 class="font-headline text-3xl md:text-4xl font-extrabold text-on-background tracking-tight max-w-2xl mx-auto leading-tight">
+                            Do your employees use Multi-Factor Authentication (MFA) for all work accounts?
+                        </h2>
+<p class="text-secondary font-medium max-w-xl mx-auto">
+                            Mandating MFA is one of the most effective ways to prevent unauthorized access to sensitive company data.
+                        </p>
+</div>
+<!-- Options Grid (Bento Style) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Option: Yes -->
+<label class="group relative cursor-pointer">
+<input checked="" class="peer sr-only" name="mfa" type="radio"/>
+<div class="h-full p-8 rounded-3xl bg-surface-container-lowest border-2 border-transparent peer-checked:border-primary peer-checked:bg-primary-container/5 hover:bg-surface-container-low transition-all duration-300 flex flex-col items-center text-center space-y-4 shadow-sm">
+<div class="w-14 h-14 rounded-full bg-primary-container/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl" data-icon="verified" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+<div>
+<span class="block text-xl font-bold text-on-background">Yes</span>
+<span class="text-xs font-bold text-primary uppercase tracking-widest mt-1 block">10 Points</span>
+</div>
+<p class="text-xs text-on-surface-variant leading-relaxed">MFA is enforced across all platforms and accounts for every employee.</p>
+<div class="absolute top-4 right-4 opacity-0 peer-checked:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-primary" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+</label>
+<!-- Option: Sometimes -->
+<label class="group relative cursor-pointer">
+<input class="peer sr-only" name="mfa" type="radio"/>
+<div class="h-full p-8 rounded-3xl bg-surface-container-lowest border-2 border-transparent peer-checked:border-primary peer-checked:bg-primary-container/5 hover:bg-surface-container-low transition-all duration-300 flex flex-col items-center text-center space-y-4 shadow-sm">
+<div class="w-14 h-14 rounded-full bg-tertiary-fixed flex items-center justify-center text-tertiary group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl" data-icon="vibration">vibration</span>
+</div>
+<div>
+<span class="block text-xl font-bold text-on-background">Sometimes</span>
+<span class="text-xs font-bold text-tertiary uppercase tracking-widest mt-1 block">5 Points</span>
+</div>
+<p class="text-xs text-on-surface-variant leading-relaxed">MFA is only required for high-risk accounts or specific departments.</p>
+<div class="absolute top-4 right-4 opacity-0 peer-checked:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-primary" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+</label>
+<!-- Option: No -->
+<label class="group relative cursor-pointer">
+<input class="peer sr-only" name="mfa" type="radio"/>
+<div class="h-full p-8 rounded-3xl bg-surface-container-lowest border-2 border-transparent peer-checked:border-primary peer-checked:bg-primary-container/5 hover:bg-surface-container-low transition-all duration-300 flex flex-col items-center text-center space-y-4 shadow-sm">
+<div class="w-14 h-14 rounded-full bg-error-container/30 flex items-center justify-center text-error group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl" data-icon="lock_open">lock_open</span>
+</div>
+<div>
+<span class="block text-xl font-bold text-on-background">No</span>
+<span class="text-xs font-bold text-error uppercase tracking-widest mt-1 block">0 Points</span>
+</div>
+<p class="text-xs text-on-surface-variant leading-relaxed">We currently rely only on single-factor password authentication.</p>
+<div class="absolute top-4 right-4 opacity-0 peer-checked:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-primary" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+</label>
+</div>
+<!-- Category Quick Links / Context -->
+<div class="flex flex-wrap justify-center gap-2 pt-4">
+<span class="px-4 py-2 rounded-full bg-surface-container text-[10px] font-extrabold text-primary uppercase tracking-wider ring-1 ring-primary/10">Access Control</span>
+<span class="px-4 py-2 rounded-full bg-surface-container-low text-[10px] font-bold text-secondary uppercase tracking-wider">Data Protection</span>
+<span class="px-4 py-2 rounded-full bg-surface-container-low text-[10px] font-bold text-secondary uppercase tracking-wider">Incident Response</span>
+<span class="px-4 py-2 rounded-full bg-surface-container-low text-[10px] font-bold text-secondary uppercase tracking-wider">Training</span>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center justify-between pt-8 max-w-2xl mx-auto w-full">
+<button class="flex items-center gap-2 px-6 py-3 font-bold text-secondary hover:text-primary transition-colors group">
+<span class="material-symbols-outlined group-hover:-translate-x-1 transition-transform" data-icon="arrow_back">arrow_back</span>
+                            Previous
+                        </button>
+<button class="flex items-center gap-3 px-10 py-4 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all group">
+                            Next Question
+                            <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="w-full py-8 mt-auto bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800">
+<div class="flex flex-col md:flex-row justify-between items-center px-8 max-w-7xl mx-auto gap-4">
+<p class="font-['Inter'] text-xs text-slate-500">© 2024 ClearRisk Security. All rights reserved.</p>
+<div class="flex gap-6">
+<a class="font-['Inter'] text-xs text-slate-500 hover:text-slate-700 transition-colors" href="#">Privacy Policy</a>
+<a class="font-['Inter'] text-xs text-slate-500 hover:text-slate-700 transition-colors" href="#">Terms of Service</a>
+<a class="font-['Inter'] text-xs text-slate-500 hover:text-slate-700 transition-colors" href="#">Security Disclosure</a>
+</div>
+</div>
+</footer>
+</main>
+</div>
+</body></html>
