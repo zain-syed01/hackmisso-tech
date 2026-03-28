@@ -169,6 +169,7 @@ function ScoreDashboard({
   riskTotal = null,
   riskBand = null,
   riskBandMessage = null,
+  aiProviderError = null,
 }) {
   const tier = getPostureTier(score);
   const tiers = [
@@ -297,6 +298,17 @@ function ScoreDashboard({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45, duration: 0.4 }}
         >
+          {aiProviderError && (
+            <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-950/35 px-4 py-3 text-sm text-amber-100/95">
+              <p className="font-semibold text-amber-200">Gemini was not used for these recommendations</p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-100/80">{aiProviderError}</p>
+              <p className="mt-2 text-xs text-amber-200/70">
+                Fix: put a valid key in a <code className="rounded bg-black/30 px-1">.env</code> file as{" "}
+                <code className="rounded bg-black/30 px-1">GEMINI_API_KEY=...</code>, restart uvicorn, then run{" "}
+                <code className="rounded bg-black/30 px-1">python scripts/verify_gemini.py</code>.
+              </p>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-emerald-400/90">Security recommendations</h3>
             {recommendationSource === "gemini" && (
@@ -310,7 +322,11 @@ function ScoreDashboard({
             {recommendationSource === "fallback" && (
               <span
                 className="cursor-help rounded-full border border-slate-500/50 bg-slate-800/80 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400"
-                title="Not using Gemini. Set GEMINI_API_KEY where you run uvicorn, restart the API, and run analysis again for AI-written recommendations."
+                title={
+                  aiProviderError
+                    ? "Gemini failed; see the warning above. Fix the key and restart the API."
+                    : "No GEMINI_API_KEY on the server. Add .env with your key, restart uvicorn, run python scripts/verify_gemini.py, then analyze again."
+                }
               >
                 Built-in
               </span>
@@ -436,6 +452,7 @@ export default function App() {
         riskBandMessage: typeof data.risk_band_message === "string" ? data.risk_band_message : null,
         recommendations: recs,
         recommendationSource: src,
+        aiProviderError: typeof data.ai_provider_error === "string" ? data.ai_provider_error : null,
         answers: { ...answers },
         savedAt: new Date().toISOString(),
       });
@@ -843,6 +860,7 @@ export default function App() {
                 riskTotal={lastReport.riskTotal ?? null}
                 riskBand={lastReport.riskBand ?? null}
                 riskBandMessage={lastReport.riskBandMessage ?? null}
+                aiProviderError={lastReport.aiProviderError ?? null}
               />
               {lastReport.savedAt && (
                 <p className="mt-6 text-center text-xs text-slate-500">

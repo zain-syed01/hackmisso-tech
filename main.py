@@ -16,6 +16,13 @@ from domain_security import scan_domain
 logger = logging.getLogger(__name__)
 
 _BASE = Path(__file__).resolve().parent
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(_BASE / ".env")
+except ImportError:
+    pass
+
 with (_BASE / "assessment_questions.json").open(encoding="utf-8") as _f:
     _BUNDLE: dict[str, Any] = json.load(_f)
 
@@ -101,17 +108,27 @@ def _failed_checks(answers: dict[str, str]) -> list[dict[str, str]]:
 def _parse_json_array_of_strings(raw: str) -> list[str]:
     text = raw.strip()
     if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I)
         text = re.sub(r"\s*```\s*$", "", text)
-    data = json.loads(text)
-    if not isinstance(data, list):
-        raise ValueError("Response is not a JSON array")
-    out: list[str] = []
-    for item in data:
-        s = str(item).strip()
-        if s:
-            out.append(s)
-    return out
+
+    def _from_obj(data: Any) -> list[str]:
+        if not isinstance(data, list):
+            raise ValueError("Response is not a JSON array")
+        out: list[str] = []
+        for item in data:
+            s = str(item).strip()
+            if s:
+                out.append(s)
+        return out
+
+    try:
+        return _from_obj(json.loads(text))
+    except json.JSONDecodeError:
+        start = text.find("[")
+        end = text.rfind("]")
+        if start != -1 and end > start and end > start:
+            return _from_obj(json.loads(text[start : end + 1]))
+        raise
 
 
 def _fallback_recommendations(failed: list[dict[str, str]]) -> list[str]:
@@ -143,12 +160,12 @@ def _fallback_recommendations(failed: list[dict[str, str]]) -> list[str]:
 def _gemini_three_recommendations(failed: list[dict[str, str]]) -> list[str]:
     import google.generativeai as genai  # noqa: PLC0415
 
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = (os.environ.get("GEMINI_API_KEY") or "").strip()
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set")
 
     genai.configure(api_key=api_key)
-    model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    model_name = (os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash").strip()
     model = genai.GenerativeModel(model_name)
 
     failed_lines = []
@@ -165,7 +182,16 @@ Generate exactly 3 specific, friendly, actionable recommendations as a JSON arra
 
 Output only valid JSON (array of strings)."""
 
-    response = model.generate_content(prompt)
+    response = None
+    try:
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(response_mime_type="application/json"),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.info("Gemini JSON mode unavailable or rejected (%s); retrying without response_mime_type.", exc)
+        response = model.generate_content(prompt)
+
     raw = _extract_gemini_text(response)
     if not raw:
         raise ValueError("Gemini returned an empty or blocked response.")
@@ -176,13 +202,16 @@ Output only valid JSON (array of strings)."""
     return recs[:3]
 
 
-def _recommendations_for_failed(failed: list[dict[str, str]]) -> tuple[list[str], str]:
-    if os.environ.get("GEMINI_API_KEY"):
+def _recommendations_for_failed(failed: list[dict[str, str]]) -> tuple[list[str], str, str | None]:
+    """Returns (recommendations, source, provider_error). provider_error set when key exists but Gemini failed."""
+    key = (os.environ.get("GEMINI_API_KEY") or "").strip()
+    if key:
         try:
-            return _gemini_three_recommendations(failed), "gemini"
-        except Exception:  # noqa: BLE001
-            pass
-    return _fallback_recommendations(failed), "fallback"
+            return _gemini_three_recommendations(failed), "gemini", None
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Gemini recommendations failed; using built-in fallback: %s", exc)
+            return _fallback_recommendations(failed), "fallback", str(exc)
+    return _fallback_recommendations(failed), "fallback", None
 
 
 class AnalyzeRequest(RootModel[dict[str, str]]):
@@ -203,7 +232,8 @@ class AnalyzeResponse(BaseModel):
     risk_band: str
     risk_band_message: str
     ai_recommendations: list[str]
-    recommendation_source: str | None = None
+    recommendation_source: str | None = None  # "gemini" | "fallback" | None when no gaps
+    ai_provider_error: str | None = None  # set when key present but Gemini failed
 
 
 class DomainScanRequest(BaseModel):
@@ -271,13 +301,16 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
                 risk_band_message=band_msg,
                 ai_recommendations=[],
                 recommendation_source=None,
+                ai_provider_error=None,
             )
 
-        ai_recommendations, source = _recommendations_for_failed(failed)
+        ai_recommendations, source, provider_err = _recommendations_for_failed(failed)
         ai_recommendations = [str(r).strip() for r in ai_recommendations if str(r).strip()]
         if not ai_recommendations:
             ai_recommendations = _fallback_recommendations(failed)
             source = "fallback"
+            if provider_err is None and (os.environ.get("GEMINI_API_KEY") or "").strip():
+                provider_err = "Empty recommendation list after Gemini response."
 
         return AnalyzeResponse(
             overall_risk_score=float(posture),
@@ -286,6 +319,7 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
             risk_band_message=band_msg,
             ai_recommendations=ai_recommendations,
             recommendation_source=source,
+            ai_provider_error=provider_err,
         )
     except HTTPException:
         raise
@@ -314,3 +348,14 @@ def domain_scan(body: DomainScanRequest) -> dict[str, Any]:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/ai-status")
+def ai_status() -> dict[str, Any]:
+    """Whether Gemini is configured (never exposes the API key)."""
+    key = (os.environ.get("GEMINI_API_KEY") or "").strip()
+    return {
+        "gemini_api_key_configured": bool(key),
+        "gemini_api_key_length": len(key),
+        "gemini_model": (os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash").strip(),
+    }
