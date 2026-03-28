@@ -585,6 +585,7 @@ export default function App() {
   const [domainScanResult, setDomainScanResult] = useState(null);
   /** When true (from Report → Edit questionnaire), show a list to jump to any question. */
   const [questionPickMode, setQuestionPickMode] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   const totalQuestions = QUESTION_ORDER.length;
   const reviewStepIndex = totalQuestions;
@@ -710,7 +711,7 @@ export default function App() {
     }
   }
 
-  function handleReset() {
+  function performReset() {
     setAnswers(buildEmptyAnswers());
     setStepIndex(0);
     setPhase("wizard");
@@ -723,6 +724,7 @@ export default function App() {
       /* ignore */
     }
     setActiveTab("home");
+    setResetConfirmOpen(false);
   }
 
   function exportPdf() {
@@ -890,7 +892,7 @@ export default function App() {
           ))}
           <button
             type="button"
-            onClick={handleReset}
+            onClick={() => setResetConfirmOpen(true)}
             className="rounded-lg border border-slate-600/80 bg-slate-800/50 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:bg-slate-800"
           >
             Reset all
@@ -901,6 +903,44 @@ export default function App() {
       <AnimatePresence mode="wait">
         {phase === "loading" && <LoadingOverlay key="loading" />}
       </AnimatePresence>
+
+      {resetConfirmOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#070b12]/85 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reset-confirm-title"
+          onClick={() => setResetConfirmOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-600/80 bg-slate-900/95 p-6 shadow-xl shadow-black/40"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="reset-confirm-title" className="text-lg font-semibold text-white">
+              Are you sure you want to reset?
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">
+              This clears your answers and saved report from this session. You cannot undo this.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setResetConfirmOpen(false)}
+                className="rounded-xl border border-slate-600 bg-slate-800/80 px-5 py-2.5 text-sm font-semibold text-slate-200 hover:border-slate-500"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={performReset}
+                className="rounded-xl border border-red-500/45 bg-red-950/40 px-5 py-2.5 text-sm font-semibold text-red-100 hover:bg-red-950/60"
+              >
+                Yes, reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === "home" && (
         <motion.section
@@ -1210,7 +1250,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleReset}
+                  onClick={() => setResetConfirmOpen(true)}
                   className="rounded-xl border border-slate-600 bg-slate-900/80 px-6 py-3 text-sm font-semibold text-slate-200 hover:border-cyan-500/40"
                 >
                   New assessment
