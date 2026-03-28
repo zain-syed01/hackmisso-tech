@@ -470,9 +470,14 @@ function ScoreDashboard({ score, recommendations, recommendationSource = null, a
               </span>
             )}
           </div>
-          <p className="mt-3 text-xs text-slate-500">
-            Tap a severity to see only that level. Use Show more to expand the full list (all levels). Most urgent
-            issues appear first.
+          <p className="mt-3 text-xs leading-relaxed text-slate-500">
+            <span className="text-slate-400">Overall %</span> is your total result across all questions. Each card’s
+            severity reflects how heavily <span className="text-slate-400">that gap</span> is weighted in the questionnaire
+            (and is softened when your posture is already strong)—it does not mean your whole organization is in
+            “critical” shape if the top score says otherwise.
+          </p>
+          <p className="mt-2 text-xs text-slate-500">
+            Tap a severity to filter. Use Show more for the full list; most urgent items are listed first.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Filter:</span>

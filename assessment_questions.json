@@ -177,7 +177,7 @@
       "framework": {"nist": "Protect", "cis": "12", "iso": "A.13.1"},
       "options": [
         {"id": "A", "text": "No firewall", "score": 25, "risk": "Critical", "priority": 1, "cost": "Free", "ai_rec": "Danger: Turn on firewall on router and computers."},
-        {"id": "B", "text": "Basic firewall on", "score": 10, "risk": "Medium", "priority": 2, "cost": "Free", "ai_rec": "Okay: Set up rules to block unwanted traffic."},
+        {"id": "B", "text": "Basic firewall on", "score": 15, "risk": "Medium", "priority": 2, "cost": "Free", "ai_rec": "Okay: Set up rules to block unwanted traffic."},
         {"id": "C", "text": "Firewall rules set up", "score": 5, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Good: Add monitoring and logs."},
         {"id": "D", "text": "Firewall + monitoring + logs", "score": 0, "risk": "Low", "priority": 3, "cost": "Free", "ai_rec": "Perfect! Review logs monthly."}
       ]

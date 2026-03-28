@@ -148,6 +148,7 @@ def _severity_sort_key(severity: str) -> int:
 
 
 def _risk_points_to_severity(pts: int) -> str:
+    """Map JSON risk points to a severity band. This is the only source of truth for labels (not Gemini)."""
     if pts >= 20:
         return "critical"
     if pts >= 15:
@@ -157,17 +158,21 @@ def _risk_points_to_severity(pts: int) -> str:
     return "low"
 
 
-def _normalize_severity_label(raw: str) -> str:
-    s = raw.strip().lower()
-    if s in ("critical", "high", "medium", "low"):
-        return s
-    if s in ("severe", "urgent", "catastrophic"):
-        return "critical"
-    if s in ("moderate", "med"):
-        return "medium"
-    if s in ("minor", "informational"):
-        return "low"
-    return "medium"
+def _cap_severity_by_posture(severity: str, posture: float) -> str:
+    """Soften per-gap severity when overall posture is strong — labels stay consistent with the headline %."""
+    if posture >= 93.0:
+        if severity == "critical":
+            return "medium"
+        if severity == "high":
+            return "low"
+        if severity == "medium":
+            return "low"
+    elif posture >= 88.0:
+        if severity == "critical":
+            return "high"
+        if severity == "high":
+            return "medium"
+    return severity
 
 
 def _fallback_item_for_failed_row(item: dict[str, str], idx: int) -> RecommendationItem:
@@ -185,8 +190,10 @@ def _fallback_item_for_failed_row(item: dict[str, str], idx: int) -> Recommendat
     return RecommendationItem(text=body, severity=sev)
 
 
-def _parse_recommendation_json(raw: str, failed: list[dict[str, str]]) -> list[RecommendationItem]:
-    """Parse Gemini JSON: array of objects {text, severity} or legacy array of strings; pad to len(failed)."""
+def _parse_recommendation_json(
+    raw: str, failed: list[dict[str, str]], posture: float | None = None
+) -> list[RecommendationItem]:
+    """Parse Gemini JSON. Severity always comes from each gap's risk_points (and optional posture cap), not the model."""
     text = raw.strip()
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I)
@@ -203,38 +210,48 @@ def _parse_recommendation_json(raw: str, failed: list[dict[str, str]]) -> list[R
     n = len(ranked)
     items: list[RecommendationItem] = []
 
-    if data and isinstance(data[0], dict) and "text" in data[0]:
-        for obj in data:
-            if not isinstance(obj, dict):
-                continue
-            t = str(obj.get("text", "")).strip()
-            if not t:
-                continue
-            sev = _normalize_severity_label(str(obj.get("severity", "medium")))
+    dict_mode = bool(data and isinstance(data[0], dict) and "text" in data[0])
+
+    for i in range(n):
+        row = ranked[i]
+        pts = int(row["risk_points"])
+        base_sev = _risk_points_to_severity(pts)
+        sev = _cap_severity_by_posture(base_sev, posture) if posture is not None else base_sev
+
+        t = ""
+        if i < len(data):
+            if dict_mode:
+                obj = data[i]
+                if isinstance(obj, dict):
+                    t = str(obj.get("text", "")).strip()
+            else:
+                t = str(data[i]).strip()
+
+        if not t:
+            fb = _fallback_item_for_failed_row(row, i)
+            # Keep Gemini-free fallback body but re-apply severity from points + posture
+            fb_sev = _cap_severity_by_posture(_risk_points_to_severity(pts), posture) if posture is not None else _risk_points_to_severity(pts)
+            items.append(RecommendationItem(text=fb.text, severity=fb_sev))
+        else:
             items.append(RecommendationItem(text=t, severity=sev))
-    else:
-        for i, el in enumerate(data):
-            t = str(el).strip()
-            if not t:
-                continue
-            pts = int(ranked[i]["risk_points"]) if i < len(ranked) else 5
-            items.append(RecommendationItem(text=t, severity=_risk_points_to_severity(pts)))
-
-    while len(items) < n:
-        items.append(_fallback_item_for_failed_row(ranked[len(items)], len(items)))
-    if len(items) > n:
-        items = items[:n]
 
     return sorted(items, key=lambda x: _severity_sort_key(x.severity))
 
 
-def _fallback_recommendation_items(failed: list[dict[str, str]]) -> list[RecommendationItem]:
+def _fallback_recommendation_items(failed: list[dict[str, str]], posture: float | None = None) -> list[RecommendationItem]:
     ranked = sorted(failed, key=lambda x: -int(x["risk_points"]))
-    items = [_fallback_item_for_failed_row(item, idx) for idx, item in enumerate(ranked)]
+    items: list[RecommendationItem] = []
+    for idx, item in enumerate(ranked):
+        fb = _fallback_item_for_failed_row(item, idx)
+        pts = int(item["risk_points"])
+        sev = _risk_points_to_severity(pts)
+        if posture is not None:
+            sev = _cap_severity_by_posture(sev, posture)
+        items.append(RecommendationItem(text=fb.text, severity=sev))
     return sorted(items, key=lambda x: _severity_sort_key(x.severity))
 
 
-def _gemini_recommendation_items(failed: list[dict[str, str]]) -> list[RecommendationItem]:
+def _gemini_recommendation_items(failed: list[dict[str, str]], posture: float | None) -> list[RecommendationItem]:
     import google.generativeai as genai  # noqa: PLC0415
 
     api_key = (os.environ.get("GEMINI_API_KEY") or "").strip()
@@ -256,14 +273,14 @@ def _gemini_recommendation_items(failed: list[dict[str, str]]) -> list[Recommend
     prompt = f"""You are an expert cybersecurity coach writing for small businesses (8th-grade reading level). The user chose weaker answers on these topics:
 {failed_block}
 
-There are exactly {n} gaps listed above (in the order shown). Return a JSON array of exactly {n} objects, in the SAME order as the gaps (first object = first gap in the list).
+There are exactly {n} gaps listed above (in the order shown). Return a JSON array of exactly {n} objects, in the SAME order (first object = first gap).
 
-Each object must be:
-{{"text": "clear actionable sentence", "severity": "critical" | "high" | "medium" | "low"}}
+Each object must be ONLY:
+{{"text": "one clear actionable sentence"}}
 
-Rules:
-- severity must match how urgent each gap is (use risk_points: higher points = more severe).
-- No markdown fences; output only valid JSON."""
+Do not include severity or priority labels in the JSON — the app assigns those from risk_points. Match the tone to the gap: small risk_points mean a calm, maintenance-style suggestion; larger risk_points mean a more urgent tone in the sentence itself.
+
+No markdown fences; output only valid JSON."""
 
     response = None
     try:
@@ -279,21 +296,23 @@ Rules:
     if not raw:
         raise ValueError("Gemini returned an empty or blocked response.")
 
-    return _parse_recommendation_json(raw, failed)
+    return _parse_recommendation_json(raw, failed, posture=posture)
 
 
-def _recommendations_for_failed(failed: list[dict[str, str]]) -> tuple[list[RecommendationItem], str, str | None]:
+def _recommendations_for_failed(
+    failed: list[dict[str, str]], posture: float
+) -> tuple[list[RecommendationItem], str, str | None]:
     """Returns (recommendations, source, provider_error). provider_error set when key exists but Gemini failed."""
     key = (os.environ.get("GEMINI_API_KEY") or "").strip()
     if key:
         try:
-            items = _gemini_recommendation_items(failed)
+            items = _gemini_recommendation_items(failed, posture)
             items = sorted(items, key=lambda x: _severity_sort_key(x.severity))
             return items, "gemini", None
         except Exception as exc:  # noqa: BLE001
             logger.warning("Gemini recommendations failed; using built-in fallback: %s", exc)
-            return _fallback_recommendation_items(failed), "fallback", str(exc)
-    return _fallback_recommendation_items(failed), "fallback", None
+            return _fallback_recommendation_items(failed, posture), "fallback", str(exc)
+    return _fallback_recommendation_items(failed, posture), "fallback", None
 
 
 class AnalyzeRequest(RootModel[dict[str, str]]):
@@ -483,10 +502,10 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
                 ai_provider_error=None,
             )
 
-        ai_items, source, provider_err = _recommendations_for_failed(failed)
+        ai_items, source, provider_err = _recommendations_for_failed(failed, posture)
         ai_items = [r for r in ai_items if r.text.strip()]
         if not ai_items:
-            ai_items = _fallback_recommendation_items(failed)
+            ai_items = _fallback_recommendation_items(failed, posture)
             source = "fallback"
             if provider_err is None and (os.environ.get("GEMINI_API_KEY") or "").strip():
                 provider_err = "Empty recommendation list after Gemini response."
