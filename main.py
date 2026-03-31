@@ -116,7 +116,6 @@ def _extract_gemini_text(response: Any) -> str:
         return "\n".join(parts).strip()
     except (AttributeError, TypeError):
         return ""
-    return ""
 
 
 def _failed_checks(answers: dict[str, str]) -> list[dict[str, str]]:
